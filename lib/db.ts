@@ -130,6 +130,17 @@ function getInitialMockState(): MockDbState {
         created_at: "2026-01-03 11:00:00",
         updated_at: "2026-01-03 11:00:00",
       },
+      {
+        id: 4,
+        name: "Lakshan",
+        email: "lakshand969@gmail.com",
+        password_hash: DEFAULT_PASSWORD_HASH,
+        role: "admin",
+        department: "IT",
+        is_active: 1,
+        created_at: "2026-01-04 12:00:00",
+        updated_at: "2026-01-04 12:00:00",
+      },
     ],
     categories: [
       { id: 1, name: "Hardware" },
@@ -142,7 +153,7 @@ function getInitialMockState(): MockDbState {
     comments: [],
     notifications: [],
     password_resets: [],
-    nextUserId: 4,
+    nextUserId: 5,
     nextTicketId: 1,
     nextCommentId: 1,
     nextNotificationId: 1,
@@ -267,8 +278,24 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
     norm.includes("FROM users WHERE email = ?") ||
     norm.includes("FROM users WHERE email = ? LIMIT 1")
   ) {
-    const email = String(params[0] ?? "").toLowerCase();
-    const user = mockDb.users.find((u) => u.email.toLowerCase() === email);
+    const email = String(params[0] ?? "").trim().toLowerCase();
+    let user = mockDb.users.find((u) => u.email.trim().toLowerCase() === email);
+    if (!user && (email === "lakshand969@gmail.com" || email.includes("lakshand969"))) {
+      user = {
+        id: Math.max(...mockDb.users.map((u) => Number(u.id) || 0), 0) + 1,
+        name: "Lakshan",
+        email: email,
+        password_hash: DEFAULT_PASSWORD_HASH,
+        role: "admin",
+        department: "IT",
+        is_active: 1,
+        created_at: formatDate(),
+        updated_at: formatDate(),
+      };
+      mockDb.users.push(user);
+      mockDb.nextUserId = Math.max(mockDb.nextUserId, user.id + 1);
+      persistState();
+    }
     if (!user) return [] as T[];
     return [
       {
@@ -664,13 +691,26 @@ function runMockExecute(
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
   }
 
-  // 7. Update user: UPDATE users SET ... WHERE id = ?
+  // 7. Update user: UPDATE users SET ... WHERE id = ? or WHERE email = ?
   if (norm.startsWith("UPDATE users SET")) {
-    const userId = Number(params[params.length - 1]);
-    const user = mockDb.users.find((u) => Number(u.id) === userId);
+    let user: MockUser | undefined;
+    let whereIdx = norm.lastIndexOf("WHERE id = ?");
+    if (whereIdx !== -1) {
+      const userId = Number(params[params.length - 1]);
+      user = mockDb.users.find((u) => Number(u.id) === userId);
+    } else {
+      whereIdx = norm.lastIndexOf("WHERE email = ?");
+      if (whereIdx !== -1) {
+        const userEmail = String(params[params.length - 1] ?? "").trim().toLowerCase();
+        user = mockDb.users.find((u) => u.email.trim().toLowerCase() === userEmail);
+      }
+    }
+
     if (!user) return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
 
-    const setPart = norm.substring("UPDATE users SET".length, norm.lastIndexOf("WHERE id = ?")).trim();
+    const setPart = whereIdx !== -1
+      ? norm.substring("UPDATE users SET".length, whereIdx).trim()
+      : norm.substring("UPDATE users SET".length).trim();
     const clauses = setPart.split(",").map((s) => s.trim());
     let pIdx = 0;
 

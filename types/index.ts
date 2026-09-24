@@ -53,7 +53,10 @@ export type NotificationType =
   | "ticket_created_employee"
   | "ticket_resolved"
   | "password_reset"
-  | "test";
+  | "new_comment"
+  | "status_update"
+  | "test"
+  | (string & {});
 
 export interface PasswordReset {
   id: number;
@@ -75,5 +78,8 @@ export interface EmailNotification {
   body_text?: string;
   body_html?: string;
   error_message?: string | null;
+  read?: boolean;
+  sent_at?: string;
+  preview?: string;
   created_at: string;
 }

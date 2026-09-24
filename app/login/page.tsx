@@ -13,6 +13,8 @@ import {
   Stack,
   CircularProgress,
   Divider,
+  Chip,
+  Tooltip,
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -59,20 +61,36 @@ function LoginContent() {
     setLoginSuccessNotice(null);
     setLoginLoading(true);
 
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setLoginError("Please enter both email and password.");
+      setLoginLoading(false);
+      return;
+    }
+
     const result = await signIn("credentials", {
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
       redirect: false,
     });
 
     setLoginLoading(false);
 
     if (result?.error) {
-      setLoginError("Invalid email or password.");
+      setLoginError("Invalid email or password. Use Admin@123 or select a demo account below.");
       return;
     }
     router.push("/dashboard");
     router.refresh();
+  }
+
+  function handleQuickFill(demoEmail: string, demoRole: string) {
+    setEmail(demoEmail);
+    setPassword("Admin@123");
+    setLoginError(null);
+    setLoginSuccessNotice(`Selected ${demoRole} account credentials. Click Sign In to proceed.`);
   }
 
   async function handleForgotSubmit(e: React.FormEvent) {
@@ -226,6 +244,68 @@ function LoginContent() {
                     "Sign In"
                   )}
                 </Button>
+
+                <Divider sx={{ my: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Demo Credentials (1-Click Fill)
+                  </Typography>
+                </Divider>
+
+                <Box
+                  sx={{
+                    bgcolor: "grey.50",
+                    p: 2,
+                    borderRadius: 1.5,
+                    border: "1px solid",
+                    borderColor: "grey.200",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                    Default Password: <strong>Admin@123</strong> (or admin123)
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Tooltip title="admin@company.com">
+                      <Chip
+                        label="Admin"
+                        color="primary"
+                        variant={email === "admin@company.com" ? "filled" : "outlined"}
+                        size="small"
+                        onClick={() => handleQuickFill("admin@company.com", "Admin")}
+                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                      />
+                    </Tooltip>
+                    <Tooltip title="agent@company.com">
+                      <Chip
+                        label="Agent"
+                        color="info"
+                        variant={email === "agent@company.com" ? "filled" : "outlined"}
+                        size="small"
+                        onClick={() => handleQuickFill("agent@company.com", "Support Agent")}
+                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                      />
+                    </Tooltip>
+                    <Tooltip title="employee@company.com">
+                      <Chip
+                        label="Employee"
+                        color="default"
+                        variant={email === "employee@company.com" ? "filled" : "outlined"}
+                        size="small"
+                        onClick={() => handleQuickFill("employee@company.com", "Employee")}
+                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                      />
+                    </Tooltip>
+                    <Tooltip title="lakshand969@gmail.com">
+                      <Chip
+                        label="lakshand969"
+                        color="secondary"
+                        variant={email === "lakshand969@gmail.com" ? "filled" : "outlined"}
+                        size="small"
+                        onClick={() => handleQuickFill("lakshand969@gmail.com", "Admin")}
+                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                      />
+                    </Tooltip>
+                  </Stack>
+                </Box>
               </Stack>
             </Box>
           </>
