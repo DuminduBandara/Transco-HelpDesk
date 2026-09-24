@@ -34,6 +34,7 @@ export const updateTicketSchema = z
   });
 
 export const ticketQuerySchema = z.object({
+  search: z.string().trim().optional(),
   status: ticketStatusEnum.optional(),
   priority: ticketPriorityEnum.optional(),
   category_id: z.coerce.number().int().positive().optional(),

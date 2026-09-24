@@ -144,7 +144,7 @@ export default function AdminUsersPage() {
       field: "department",
       headerName: "Department",
       width: 150,
-      valueGetter: (params) => params.row.department ?? "—",
+      valueGetter: (_value, row) => row.department ?? "—",
     },
     {
       field: "is_active",

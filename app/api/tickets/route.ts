@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { status, priority, category_id, assigned_to, page, pageSize } =
+  const { search, status, priority, category_id, assigned_to, page, pageSize } =
     parsed.data;
 
   const where: string[] = [];
@@ -33,6 +33,11 @@ export async function GET(req: NextRequest) {
   if (user.role === "employee") {
     where.push("t.created_by = ?");
     params.push(user.id);
+  }
+
+  if (search) {
+    where.push("(t.title LIKE ? OR t.description LIKE ?)");
+    params.push(`%${search}%`, `%${search}%`);
   }
 
   if (status) {

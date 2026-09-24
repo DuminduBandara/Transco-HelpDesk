@@ -96,7 +96,7 @@ export async function PATCH(
   // Auto-stamp resolved_at when status transitions to 'resolved'.
   if (data.status === "resolved") {
     setClauses.push("resolved_at = NOW()");
-  } else if (data.status && data.status !== "resolved") {
+  } else if (data.status) {
     setClauses.push("resolved_at = NULL");
   }
 

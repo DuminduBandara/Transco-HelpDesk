@@ -10,7 +10,11 @@ import {
   MenuItem,
   TextField,
   Stack,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
 import type { Ticket, Category } from "@/types";
@@ -38,6 +42,8 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -46,12 +52,22 @@ export default function TicketsPage() {
     pageSize: 25,
   });
 
+  // Debounce search input changes
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+      setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
   const loadTickets = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({
       page: String(paginationModel.page + 1),
       pageSize: String(paginationModel.pageSize),
     });
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (status) params.set("status", status);
     if (priority) params.set("priority", priority);
     if (categoryId) params.set("category_id", categoryId);
@@ -61,7 +77,7 @@ export default function TicketsPage() {
     setRows(data.tickets ?? []);
     setRowCount(data.total ?? 0);
     setLoading(false);
-  }, [status, priority, categoryId, paginationModel]);
+  }, [debouncedSearch, status, priority, categoryId, paginationModel]);
 
   useEffect(() => {
     loadTickets();
@@ -72,6 +88,21 @@ export default function TicketsPage() {
       .then((r) => r.json())
       .then((d) => setCategories(d.categories ?? []));
   }, []);
+
+  const handleStatusChange = (val: string) => {
+    setStatus(val);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  };
+
+  const handlePriorityChange = (val: string) => {
+    setPriority(val);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setCategoryId(val);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  };
 
   const columns: GridColDef<Ticket>[] = [
     { field: "id", headerName: "ID", width: 70 },
@@ -92,7 +123,7 @@ export default function TicketsPage() {
       field: "category_name",
       headerName: "Category",
       width: 150,
-      valueGetter: (params) => params.row.category_name ?? "—",
+      valueGetter: (_value, row) => row.category_name ?? "—",
     },
     {
       field: "created_by_name",
@@ -103,7 +134,7 @@ export default function TicketsPage() {
       field: "assigned_to_name",
       headerName: "Assigned To",
       width: 160,
-      valueGetter: (params) => params.row.assigned_to_name ?? "Unassigned",
+      valueGetter: (_value, row) => row.assigned_to_name ?? "Unassigned",
     },
     {
       field: "created_at",
@@ -119,52 +150,85 @@ export default function TicketsPage() {
       </Typography>
 
       <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          alignItems={{ xs: "stretch", lg: "center" }}
+        >
           <TextField
-            select
             size="small"
-            label="Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value}>
-                {o.label}
-              </MenuItem>
-            ))}
-          </TextField>
+            placeholder="Search tickets by title or description..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    aria-label="clear search"
+                    onClick={() => setSearchInput("")}
+                    edge="end"
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{ flex: 1, minWidth: { xs: "100%", lg: 320 } }}
+          />
 
-          <TextField
-            select
-            size="small"
-            label="Priority"
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            {PRIORITY_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value}>
-                {o.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ flexWrap: "wrap" }}>
+            <TextField
+              select
+              size="small"
+              label="Status"
+              value={status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              sx={{ minWidth: 150 }}
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </TextField>
 
-          <TextField
-            select
-            size="small"
-            label="Category"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            sx={{ minWidth: 180 }}
-          >
-            <MenuItem value="">All Categories</MenuItem>
-            {categories.map((c) => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}
-              </MenuItem>
-            ))}
-          </TextField>
+            <TextField
+              select
+              size="small"
+              label="Priority"
+              value={priority}
+              onChange={(e) => handlePriorityChange(e.target.value)}
+              sx={{ minWidth: 150 }}
+            >
+              {PRIORITY_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Category"
+              value={categoryId}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              sx={{ minWidth: 170 }}
+            >
+              <MenuItem value="">All Categories</MenuItem>
+              {categories.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
         </Stack>
       </Paper>
 
