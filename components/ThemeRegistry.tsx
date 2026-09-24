@@ -60,10 +60,7 @@ export default function ThemeRegistry({
     if (names.length === 0) return null;
     let styles = "";
     for (const name of names) {
-      const val = cache.inserted[name];
-      if (typeof val === "string") {
-        styles += val;
-      }
+      styles += cache.inserted[name];
     }
     return (
       <style

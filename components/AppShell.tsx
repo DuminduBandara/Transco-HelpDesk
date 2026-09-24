@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -26,13 +26,8 @@ const ROLE_LABEL: Record<string, string> = {
 export default function AppShell({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || status === "loading") {
+  if (status === "loading") {
     return (
       <Box
         sx={{
@@ -40,7 +35,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          bgcolor: "background.default",
         }}
       >
         <CircularProgress />

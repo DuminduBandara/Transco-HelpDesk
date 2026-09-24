@@ -17,7 +17,6 @@ import {
   Chip,
   Switch,
   FormControlLabel,
-  CircularProgress,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
@@ -30,17 +29,12 @@ const ROLE_COLORS: Record<Role, any> = {
 };
 
 export default function AdminUsersPage() {
-  const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // form state
   const [name, setName] = useState("");
@@ -198,30 +192,17 @@ export default function AdminUsersPage() {
       </Stack>
 
       <Paper sx={{ height: 600 }}>
-        {mounted ? (
-          <DataGrid
-            rows={users}
-            columns={columns}
-            loading={loading}
-            disableRowSelectionOnClick
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-            }}
-            pageSizeOptions={[25, 50, 100]}
-            sx={{ border: "none" }}
-          />
-        ) : (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        )}
+        <DataGrid
+          rows={users}
+          columns={columns}
+          loading={loading}
+          disableRowSelectionOnClick
+          initialState={{
+            pagination: { paginationModel: { pageSize: 25 } },
+          }}
+          pageSizeOptions={[25, 50, 100]}
+          sx={{ border: "none" }}
+        />
       </Paper>
 
       <Dialog

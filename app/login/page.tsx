@@ -73,18 +73,15 @@ export default function LoginPage() {
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <TextField
-              id="login-email"
-              name="email"
               label="Email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               fullWidth
+              autoFocus
             />
             <TextField
-              id="login-password"
-              name="password"
               label="Password"
               type="password"
               value={password}
