@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   Box,
@@ -14,16 +13,11 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
-  Tooltip,
-  Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
-import { RealtimeIndicator } from "@/components/RealtimeIndicator";
-import { useRealtime } from "@/hooks/useRealtime";
 import type { Ticket, Category } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -44,9 +38,6 @@ const PRIORITY_OPTIONS = [
 
 export default function TicketsPage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const isStaff = session?.user?.role === "agent" || session?.user?.role === "admin";
-
   const [rows, setRows] = useState<Ticket[]>([]);
   const [rowCount, setRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -87,36 +78,16 @@ export default function TicketsPage() {
     if (priority) params.set("priority", priority);
     if (categoryId) params.set("category_id", categoryId);
 
-    try {
-      const res = await fetch(`/api/tickets?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRows(Array.isArray(data.tickets) ? data.tickets : []);
-        setRowCount(typeof data.total === "number" ? data.total : 0);
-      } else {
-        setRows([]);
-        setRowCount(0);
-      }
-    } catch (err) {
-      console.error("Error fetching tickets:", err);
-      setRows([]);
-      setRowCount(0);
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`/api/tickets?${params.toString()}`);
+    const data = await res.json();
+    setRows(data.tickets ?? []);
+    setRowCount(data.total ?? 0);
+    setLoading(false);
   }, [debouncedSearch, status, priority, categoryId, paginationModel]);
 
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
-
-  // Connect to live real-time event stream
-  const { isConnected, lastSyncTime } = useRealtime(
-    ["ticket:created", "ticket:updated", "ticket:deleted"],
-    () => {
-      loadTickets();
-    }
-  );
 
   useEffect(() => {
     fetch("/api/categories")
@@ -141,35 +112,7 @@ export default function TicketsPage() {
 
   const columns: GridColDef<Ticket>[] = [
     { field: "id", headerName: "ID", width: 70 },
-    {
-      field: "title",
-      headerName: "Title",
-      flex: 1,
-      minWidth: 240,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%", overflow: "hidden" }}>
-          <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-            {params.value}
-          </Typography>
-          {isStaff && Boolean(params.row.internal_notes) && (
-            <Tooltip
-              title={`Internal Staff Note: ${String(params.row.internal_notes).slice(0, 100)}${
-                String(params.row.internal_notes).length > 100 ? "..." : ""
-              }`}
-            >
-              <Chip
-                size="small"
-                icon={<LockOutlinedIcon sx={{ fontSize: "13px !important" }} />}
-                label="Note"
-                color="warning"
-                variant="outlined"
-                sx={{ height: 20, fontSize: "0.68rem", fontWeight: 600, flexShrink: 0 }}
-              />
-            </Tooltip>
-          )}
-        </Box>
-      ),
-    },
+    { field: "title", headerName: "Title", flex: 1, minWidth: 220 },
     {
       field: "status",
       headerName: "Status",
@@ -208,24 +151,9 @@ export default function TicketsPage() {
 
   return (
     <Box>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
-        <Typography variant="h5" fontWeight={600}>
-          Tickets
-        </Typography>
-        <RealtimeIndicator
-          isConnected={isConnected}
-          lastSyncTime={lastSyncTime}
-          onRefresh={loadTickets}
-          isRefreshing={loading}
-        />
-      </Box>
+      <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
+        Tickets
+      </Typography>
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack
@@ -314,7 +242,6 @@ export default function TicketsPage() {
         {mounted ? (
           <DataGrid
             rows={rows}
-            getRowId={(row) => row.id}
             columns={columns}
             rowCount={rowCount}
             loading={loading}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -30,8 +30,6 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
-import { RealtimeIndicator } from "@/components/RealtimeIndicator";
-import { useRealtime } from "@/hooks/useRealtime";
 import type { Ticket } from "@/types";
 
 interface StatusCount {
@@ -81,9 +79,7 @@ function StatCard({
 export default function DashboardPage() {
   const { data: session } = useSession();
   const role = session?.user?.role;
-  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [byStatus, setByStatus] = useState<StatusCount[]>([]);
   const [unassigned, setUnassigned] = useState(0);
   const [totalUsers, setTotalUsers] = useState<number | undefined>();
@@ -99,57 +95,43 @@ export default function DashboardPage() {
   const [reportError, setReportError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!role) return;
 
-  const loadData = useCallback(async (isBackground = false) => {
-    if (!isBackground) setRefreshing(true);
-    try {
-      if (role === "employee") {
-        const res = await fetch("/api/tickets?pageSize=100");
-        const data = await res.json();
-        const tickets: Ticket[] = data.tickets ?? [];
-        const counts: Record<string, number> = {};
-        for (const t of tickets) {
-          counts[t.status] = (counts[t.status] ?? 0) + 1;
+    async function load() {
+      setLoading(true);
+      try {
+        if (role === "employee") {
+          const res = await fetch("/api/tickets?pageSize=100");
+          const data = await res.json();
+          const tickets: Ticket[] = data.tickets ?? [];
+          const counts: Record<string, number> = {};
+          for (const t of tickets) {
+            counts[t.status] = (counts[t.status] ?? 0) + 1;
+          }
+          setByStatus(
+            Object.entries(counts).map(([status, count]) => ({ status, count }))
+          );
+          setRecentTickets(tickets.slice(0, 6));
+        } else {
+          const [statsRes, ticketsRes] = await Promise.all([
+            fetch("/api/stats"),
+            fetch("/api/tickets?pageSize=6"),
+          ]);
+          const statsData = await statsRes.json();
+          const ticketsData = await ticketsRes.json();
+          setByStatus(statsData.byStatus ?? []);
+          setUnassigned(statsData.unassigned ?? 0);
+          setTotalUsers(statsData.totalUsers);
+          setRecentTickets(ticketsData.tickets ?? []);
         }
-        setByStatus(
-          Object.entries(counts).map(([status, count]) => ({ status, count }))
-        );
-        setRecentTickets(tickets.slice(0, 6));
-      } else {
-        const [statsRes, ticketsRes] = await Promise.all([
-          fetch("/api/stats"),
-          fetch("/api/tickets?pageSize=6"),
-        ]);
-        const statsData = await statsRes.json();
-        const ticketsData = await ticketsRes.json();
-        setByStatus(statsData.byStatus ?? []);
-        setUnassigned(statsData.unassigned ?? 0);
-        setTotalUsers(statsData.totalUsers);
-        setRecentTickets(ticketsData.tickets ?? []);
+      } catch (err) {
+        console.error("Failed to load dashboard data", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to load dashboard data", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
+    load();
   }, [role]);
-
-  useEffect(() => {
-    if (!mounted || !role) return;
-    loadData(false);
-  }, [mounted, role, loadData]);
-
-  // Connect to live real-time event stream
-  const { isConnected, lastSyncTime } = useRealtime(
-    ["ticket:created", "ticket:updated", "ticket:deleted", "stats:updated"],
-    () => {
-      // Whenever tickets, status, or stats change anywhere in the system, refresh live in background
-      loadData(true);
-    }
-  );
 
   const getCount = (status: string) =>
     byStatus.find((s) => s.status === status)?.count ?? 0;
@@ -181,7 +163,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (!mounted || loading) {
+  if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress />
@@ -195,9 +177,7 @@ export default function DashboardPage() {
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: { xs: "flex-start", sm: "center" },
-          flexDirection: { xs: "column", sm: "row" },
-          gap: 2,
+          alignItems: "center",
           mb: 3,
         }}
       >
@@ -206,20 +186,12 @@ export default function DashboardPage() {
             Welcome back, {session?.user?.name?.split(" ")[0]}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Live overview of support requests and ticketing activity
+            Overview of support requests and ticketing activity
           </Typography>
         </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <RealtimeIndicator
-            isConnected={isConnected}
-            lastSyncTime={lastSyncTime}
-            onRefresh={() => loadData(false)}
-            isRefreshing={refreshing}
-          />
-          <Button component={Link} href="/tickets/new" variant="contained">
-            Submit a Ticket
-          </Button>
-        </Stack>
+        <Button component={Link} href="/tickets/new" variant="contained">
+          Submit a Ticket
+        </Button>
       </Box>
 
       {/* Stats Cards */}
@@ -383,32 +355,8 @@ export default function DashboardPage() {
         <Divider sx={{ mb: 2 }} />
 
         {recentTickets.length === 0 ? (
-          <Box sx={{ py: 6, textAlign: "center" }}>
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                bgcolor: "action.hover",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                mx: "auto",
-                mb: 2,
-                color: "text.secondary",
-              }}
-            >
-              <ConfirmationNumberIcon sx={{ fontSize: 28 }} />
-            </Box>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              No Tickets Created Yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, mx: "auto", mb: 3 }}>
-              When employees or staff create support tickets, they will automatically appear here and sync in real time.
-            </Typography>
-            <Button component={Link} href="/tickets/new" variant="contained" size="small">
-              Submit the First Ticket
-            </Button>
+          <Box sx={{ py: 4, textAlign: "center" }}>
+            <Typography color="text.secondary">No tickets recorded yet.</Typography>
           </Box>
         ) : (
           <TableContainer>

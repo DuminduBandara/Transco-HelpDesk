@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
-import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { Ticket } from "@/types";
 
 // POST /api/tickets/:id/assign — agent claims a ticket for themself.
@@ -36,13 +35,6 @@ export async function POST(
      WHERE id = ?`,
     [user.id, ticketId]
   );
-
-  broadcastRealtimeEvent("ticket:updated", {
-    id: ticketId,
-    assigned_to: user.id,
-    assigned_to_name: user.name,
-  });
-  broadcastRealtimeEvent("stats:updated");
 
   return NextResponse.json({ success: true });
 }

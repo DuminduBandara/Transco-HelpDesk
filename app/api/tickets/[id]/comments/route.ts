@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createCommentSchema } from "@/lib/validators";
-import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { Ticket, TicketComment } from "@/types";
 
 async function canAccessTicket(
@@ -15,7 +14,7 @@ async function canAccessTicket(
   );
   const ticket = rows[0];
   if (!ticket) return { ok: false, status: 404 as const };
-  if (user.role === "employee" && Number(ticket.created_by) !== Number(user.id)) {
+  if (user.role === "employee" && ticket.created_by !== user.id) {
     return { ok: false, status: 403 as const };
   }
   return { ok: true as const };
@@ -93,16 +92,6 @@ export async function POST(
     "INSERT INTO ticket_comments (ticket_id, user_id, comment) VALUES (?, ?, ?)",
     [ticketId, user.id, parsed.data.comment]
   );
-
-  broadcastRealtimeEvent("comment:created", {
-    id: result.insertId,
-    ticket_id: ticketId,
-    user_id: user.id,
-    user_name: user.name,
-    user_role: user.role,
-    comment: parsed.data.comment,
-    created_at: new Date().toISOString(),
-  });
 
   return NextResponse.json({ id: result.insertId }, { status: 201 });
 }

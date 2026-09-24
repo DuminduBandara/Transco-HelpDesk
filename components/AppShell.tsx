@@ -13,16 +13,9 @@ import {
   Container,
   Chip,
   CircularProgress,
-  IconButton,
-  Tooltip,
-  Badge,
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AddIcon from "@mui/icons-material/Add";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import WifiIcon from "@mui/icons-material/Wifi";
-import NotificationCenterModal from "@/components/NotificationCenterModal";
-import { useRealtime } from "@/hooks/useRealtime";
 
 const ROLE_LABEL: Record<string, string> = {
   employee: "Employee",
@@ -34,29 +27,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-
-  const fetchNotifCount = async () => {
-    try {
-      const res = await fetch("/api/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadNotifCount((data.notifications ?? []).length);
-      }
-    } catch {
-      // ignore
-    }
-  };
 
   useEffect(() => {
     setMounted(true);
-    fetchNotifCount();
   }, []);
-
-  const { isConnected } = useRealtime(["notification:created"], () => {
-    fetchNotifCount();
-  });
 
   if (!mounted || status === "loading") {
     return (
@@ -111,40 +85,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             color="inherit"
             variant="outlined"
             startIcon={<AddIcon />}
-            sx={{ mr: 1, borderColor: "rgba(255,255,255,0.5)" }}
+            sx={{ mr: 2, borderColor: "rgba(255,255,255,0.5)" }}
           >
             New Ticket
           </Button>
-
-          <Tooltip title={isConnected ? "Real-time sync connected" : "Connecting to real-time sync..."}>
-            <Chip
-              icon={<WifiIcon sx={{ fontSize: "14px !important", color: "inherit !important" }} />}
-              label="Live"
-              size="small"
-              sx={{
-                mr: 1.5,
-                bgcolor: isConnected ? "rgba(76, 175, 80, 0.25)" : "rgba(255, 255, 255, 0.15)",
-                color: "white",
-                border: "1px solid",
-                borderColor: isConnected ? "rgba(76, 175, 80, 0.5)" : "transparent",
-                fontWeight: 600,
-                fontSize: "0.72rem",
-                height: 24,
-              }}
-            />
-          </Tooltip>
-
-          <Tooltip title="Email Notifications & Outbox">
-            <IconButton
-              color="inherit"
-              onClick={() => setNotificationsOpen(true)}
-              sx={{ mr: 1 }}
-            >
-              <Badge badgeContent={unreadNotifCount} color="error" max={99}>
-                <MailOutlineIcon />
-              </Badge>
-            </IconButton>
-          </Tooltip>
 
           {role && (
             <Chip
@@ -167,12 +111,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {children}
       </Container>
-
-      <NotificationCenterModal
-        open={notificationsOpen}
-        onClose={() => setNotificationsOpen(false)}
-        isAdmin={role === "admin"}
-      />
     </Box>
   );
 }

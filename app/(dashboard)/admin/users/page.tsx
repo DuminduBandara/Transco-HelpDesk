@@ -21,8 +21,6 @@ import {
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
-import { RealtimeIndicator } from "@/components/RealtimeIndicator";
-import { useRealtime } from "@/hooks/useRealtime";
 import type { User, Role } from "@/types";
 
 const ROLE_COLORS: Record<Role, any> = {
@@ -63,10 +61,6 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
-
-  const { isConnected, lastSyncTime } = useRealtime(["users:updated"], () => {
-    loadUsers();
-  });
 
   function openCreateDialog() {
     setEditingUser(null);
@@ -194,21 +188,13 @@ export default function AdminUsersPage() {
         <Typography variant="h5" fontWeight={600}>
           User Management
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <RealtimeIndicator
-            isConnected={isConnected}
-            lastSyncTime={lastSyncTime}
-            onRefresh={loadUsers}
-            isRefreshing={loading}
-          />
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openCreateDialog}
-          >
-            New User
-          </Button>
-        </Stack>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={openCreateDialog}
+        >
+          New User
+        </Button>
       </Stack>
 
       <Paper sx={{ height: 600 }}>

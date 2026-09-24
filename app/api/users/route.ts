@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createUserSchema } from "@/lib/validators";
-import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { User } from "@/types";
 
 // GET /api/users — admin only (also used to populate "assign to" dropdowns
@@ -81,8 +80,6 @@ export async function POST(req: NextRequest) {
     "INSERT INTO users (name, email, password_hash, role, department) VALUES (?, ?, ?, ?, ?)",
     [name, email, password_hash, role, department ?? null]
   );
-
-  broadcastRealtimeEvent("users:updated", { id: result.insertId, name, role, email });
 
   return NextResponse.json({ id: result.insertId }, { status: 201 });
 }
