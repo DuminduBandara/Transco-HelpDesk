@@ -1,0 +1,108 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "System Admin",
+      "email": "admin@company.com",
+      "password_hash": "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+      "role": "admin",
+      "department": "IT",
+      "is_active": 1,
+      "created_at": "2026-01-01 09:00:00",
+      "updated_at": "2026-01-01 09:00:00"
+    },
+    {
+      "id": 2,
+      "name": "Sarah Agent",
+      "email": "agent@company.com",
+      "password_hash": "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+      "role": "agent",
+      "department": "IT Support",
+      "is_active": 1,
+      "created_at": "2026-01-02 10:00:00",
+      "updated_at": "2026-01-02 10:00:00"
+    },
+    {
+      "id": 3,
+      "name": "John Employee",
+      "email": "employee@company.com",
+      "password_hash": "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+      "role": "employee",
+      "department": "Operations",
+      "is_active": 1,
+      "created_at": "2026-01-03 11:00:00",
+      "updated_at": "2026-01-03 11:00:00"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Hardware"
+    },
+    {
+      "id": 2,
+      "name": "Software"
+    },
+    {
+      "id": 3,
+      "name": "Network"
+    },
+    {
+      "id": 4,
+      "name": "Access Request"
+    },
+    {
+      "id": 5,
+      "name": "Other"
+    }
+  ],
+  "tickets": [],
+  "comments": [],
+  "notifications": [
+    {
+      "id": 3,
+      "ticket_id": 2,
+      "recipient_email": "dumindu@transcotravels.com",
+      "recipient_name": "Dumindu Bandara",
+      "subject": "[IT Help Desk] Ticket #2 Received: Key Board Not Working",
+      "type": "ticket_created_employee",
+      "status": "failed",
+      "body_text": "Hi Dumindu Bandara,\n\nYour support request #2 (Key Board Not Working) has been received by IT Help Desk.\nPriority: medium\nCategory: Hardware\nStatus: Open\n\nYou can track your ticket progress here:\nhttp://localhost:3000/tickets/2\n\nThank you,\nIT Help Desk Team",
+      "body_html": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Ticket #2 Received</title>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;\">\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f6f8; padding: 32px 16px;\">\n    <tr>\n      <td align=\"center\">\n        <table role=\"presentation\" width=\"100%\" max-width=\"600\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n          <!-- Header -->\n          <tr>\n            <td style=\"background-color: #1976d2; padding: 24px 32px; text-align: left;\">\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;\">IT Help Desk</span>\n                    <span style=\"display: block; font-size: 13px; color: #e3f2fd; margin-top: 4px;\">Automated Ticket Notification System</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Main Content -->\n          <tr>\n            <td style=\"padding: 32px;\">\n              <div style=\"margin-bottom: 16px;\">\n                      <span style=\"display: inline-block; padding: 6px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 9999px; background-color: #e0f2fe; color: #0369a1;\">\n                        Ticket Created\n                      </span>\n                    </div>\n              <h1 style=\"margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3;\">\n                Ticket #2 Received\n              </h1>\n\n              <div style=\"font-size: 15px; line-height: 1.6; color: #334155;\">\n                \n      <p style=\"margin-top: 0;\">Hi <strong>Dumindu Bandara</strong>,</p>\n      <p>Thank you for submitting your IT support request. We have received your ticket and added it to our queue. An IT administrator or agent will review it shortly.</p>\n\n      <div style=\"background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;\">\n        <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"4\" border=\"0\" style=\"font-size: 14px;\">\n          <tr>\n            <td style=\"width: 130px; color: #64748b; font-weight: 600;\">Ticket Reference:</td>\n            <td style=\"font-weight: 600; color: #0f172a;\">#2</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Title:</td>\n            <td style=\"color: #0f172a;\">Key Board Not Working</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Priority:</td>\n            <td>\n              <span style=\"display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; background-color: #fef3c7; color: #b45309; text-transform: uppercase;\">\n                medium\n              </span>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Category:</td>\n            <td style=\"color: #334155;\">Hardware</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Initial Status:</td>\n            <td style=\"color: #0284c7; font-weight: 600;\">Open</td>\n          </tr>\n        </table>\n      </div>\n\n      <p style=\"font-size: 14px; color: #475569;\">\n        You can track the progress of your issue or provide additional updates and attachments by clicking the link below.\n      </p>\n    \n              </div>\n\n              <!-- CTA Button -->\n              <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin-top: 32px;\">\n                <tr>\n                  <td align=\"center\" style=\"border-radius: 6px; background-color: #1976d2;\">\n                    <a href=\"http://localhost:3000/tickets/2\" target=\"_blank\" style=\"display: inline-block; padding: 12px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px;\">\n                      Track Your Ticket &rarr;\n                    </a>\n                  </td>\n                </tr>\n              </table>\n\n              <p style=\"margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;\">\n                Can't click the button? Copy and paste this link in your browser:<br>\n                <a href=\"http://localhost:3000/tickets/2\" style=\"color: #1976d2; word-break: break-all;\">http://localhost:3000/tickets/2</a>\n              </p>\n            </td>\n          </tr>\n\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;\">\n              This notification was generated automatically by the IT Help Desk application.<br>\n              &copy; 2026 IT Help Desk Support Portal.\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+      "error_message": "Hostname/IP does not match certificate's altnames: Host: mail.email.transcocargo.lk. is not in the cert's altnames: DNS:*.dreamhost.com, DNS:dreamhost.com",
+      "created_at": "2026-09-24 11:24:13"
+    },
+    {
+      "id": 2,
+      "ticket_id": 2,
+      "recipient_email": "dumindu@transcotravels.com",
+      "recipient_name": "IT Admin Team",
+      "subject": "[IT Help Desk] New Ticket #2: Key Board Not Working",
+      "type": "ticket_created_admin",
+      "status": "failed",
+      "body_text": "New Ticket #2: Key Board Not Working\nReported By: Dumindu Bandara (dumindu@transcotravels.com)\nPriority: medium\nCategory: Hardware\nDepartment: N/A\n\nDescription:\nKey Board Not Working\n\nView Ticket: http://localhost:3000/tickets/2",
+      "body_html": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>New Support Ticket #2</title>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;\">\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f6f8; padding: 32px 16px;\">\n    <tr>\n      <td align=\"center\">\n        <table role=\"presentation\" width=\"100%\" max-width=\"600\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n          <!-- Header -->\n          <tr>\n            <td style=\"background-color: #1976d2; padding: 24px 32px; text-align: left;\">\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;\">IT Help Desk</span>\n                    <span style=\"display: block; font-size: 13px; color: #e3f2fd; margin-top: 4px;\">Automated Ticket Notification System</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Main Content -->\n          <tr>\n            <td style=\"padding: 32px;\">\n              <div style=\"margin-bottom: 16px;\">\n                      <span style=\"display: inline-block; padding: 6px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 9999px; background-color: #fef3c7; color: #b45309;\">\n                        Priority: medium\n                      </span>\n                    </div>\n              <h1 style=\"margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3;\">\n                New Support Ticket #2\n              </h1>\n\n              <div style=\"font-size: 15px; line-height: 1.6; color: #334155;\">\n                \n      <p style=\"margin-top: 0;\">A new IT support ticket has been submitted and requires triage.</p>\n      <div style=\"background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;\">\n        <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"4\" border=\"0\" style=\"font-size: 14px;\">\n          <tr>\n            <td style=\"width: 140px; color: #64748b; font-weight: 600;\">Ticket ID:</td>\n            <td style=\"font-weight: 600; color: #0f172a;\">#2</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Title:</td>\n            <td style=\"font-weight: 600; color: #0f172a;\">Key Board Not Working</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Priority:</td>\n            <td>\n              <span style=\"display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; background-color: #fef3c7; color: #b45309; text-transform: uppercase;\">\n                medium\n              </span>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Category:</td>\n            <td style=\"color: #334155;\">Hardware</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Reported By:</td>\n            <td style=\"color: #334155;\"><strong>Dumindu Bandara</strong> (dumindu@transcotravels.com)</td>\n          </tr>\n          \n        </table>\n      </div>\n\n      <div style=\"margin-top: 16px;\">\n        <strong style=\"color: #0f172a; font-size: 14px;\">Description:</strong>\n        <p style=\"background-color: #ffffff; border-left: 3px solid #1976d2; padding: 12px 16px; margin: 8px 0 0 0; color: #334155; font-size: 14px; white-space: pre-wrap;\">Key Board Not Working</p>\n      </div>\n    \n              </div>\n\n              <!-- CTA Button -->\n              <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin-top: 32px;\">\n                <tr>\n                  <td align=\"center\" style=\"border-radius: 6px; background-color: #1976d2;\">\n                    <a href=\"http://localhost:3000/tickets/2\" target=\"_blank\" style=\"display: inline-block; padding: 12px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px;\">\n                      Review Ticket in Help Desk &rarr;\n                    </a>\n                  </td>\n                </tr>\n              </table>\n\n              <p style=\"margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;\">\n                Can't click the button? Copy and paste this link in your browser:<br>\n                <a href=\"http://localhost:3000/tickets/2\" style=\"color: #1976d2; word-break: break-all;\">http://localhost:3000/tickets/2</a>\n              </p>\n            </td>\n          </tr>\n\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;\">\n              This notification was generated automatically by the IT Help Desk application.<br>\n              &copy; 2026 IT Help Desk Support Portal.\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+      "error_message": "Hostname/IP does not match certificate's altnames: Host: mail.email.transcocargo.lk. is not in the cert's altnames: DNS:*.dreamhost.com, DNS:dreamhost.com",
+      "created_at": "2026-09-24 11:24:11"
+    },
+    {
+      "id": 1,
+      "ticket_id": 2,
+      "recipient_email": "admin@company.com",
+      "recipient_name": "System Admin",
+      "subject": "[IT Help Desk] New Ticket #2: Key Board Not Working",
+      "type": "ticket_created_admin",
+      "status": "failed",
+      "body_text": "New Ticket #2: Key Board Not Working\nReported By: Dumindu Bandara (dumindu@transcotravels.com)\nPriority: medium\nCategory: Hardware\nDepartment: N/A\n\nDescription:\nKey Board Not Working\n\nView Ticket: http://localhost:3000/tickets/2",
+      "body_html": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>New Support Ticket #2</title>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;\">\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f4f6f8; padding: 32px 16px;\">\n    <tr>\n      <td align=\"center\">\n        <table role=\"presentation\" width=\"100%\" max-width=\"600\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n          <!-- Header -->\n          <tr>\n            <td style=\"background-color: #1976d2; padding: 24px 32px; text-align: left;\">\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n                <tr>\n                  <td>\n                    <span style=\"font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;\">IT Help Desk</span>\n                    <span style=\"display: block; font-size: 13px; color: #e3f2fd; margin-top: 4px;\">Automated Ticket Notification System</span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Main Content -->\n          <tr>\n            <td style=\"padding: 32px;\">\n              <div style=\"margin-bottom: 16px;\">\n                      <span style=\"display: inline-block; padding: 6px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 9999px; background-color: #fef3c7; color: #b45309;\">\n                        Priority: medium\n                      </span>\n                    </div>\n              <h1 style=\"margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3;\">\n                New Support Ticket #2\n              </h1>\n\n              <div style=\"font-size: 15px; line-height: 1.6; color: #334155;\">\n                \n      <p style=\"margin-top: 0;\">A new IT support ticket has been submitted and requires triage.</p>\n      <div style=\"background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;\">\n        <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"4\" border=\"0\" style=\"font-size: 14px;\">\n          <tr>\n            <td style=\"width: 140px; color: #64748b; font-weight: 600;\">Ticket ID:</td>\n            <td style=\"font-weight: 600; color: #0f172a;\">#2</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Title:</td>\n            <td style=\"font-weight: 600; color: #0f172a;\">Key Board Not Working</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Priority:</td>\n            <td>\n              <span style=\"display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; background-color: #fef3c7; color: #b45309; text-transform: uppercase;\">\n                medium\n              </span>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Category:</td>\n            <td style=\"color: #334155;\">Hardware</td>\n          </tr>\n          <tr>\n            <td style=\"color: #64748b; font-weight: 600;\">Reported By:</td>\n            <td style=\"color: #334155;\"><strong>Dumindu Bandara</strong> (dumindu@transcotravels.com)</td>\n          </tr>\n          \n        </table>\n      </div>\n\n      <div style=\"margin-top: 16px;\">\n        <strong style=\"color: #0f172a; font-size: 14px;\">Description:</strong>\n        <p style=\"background-color: #ffffff; border-left: 3px solid #1976d2; padding: 12px 16px; margin: 8px 0 0 0; color: #334155; font-size: 14px; white-space: pre-wrap;\">Key Board Not Working</p>\n      </div>\n    \n              </div>\n\n              <!-- CTA Button -->\n              <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin-top: 32px;\">\n                <tr>\n                  <td align=\"center\" style=\"border-radius: 6px; background-color: #1976d2;\">\n                    <a href=\"http://localhost:3000/tickets/2\" target=\"_blank\" style=\"display: inline-block; padding: 12px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px;\">\n                      Review Ticket in Help Desk &rarr;\n                    </a>\n                  </td>\n                </tr>\n              </table>\n\n              <p style=\"margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;\">\n                Can't click the button? Copy and paste this link in your browser:<br>\n                <a href=\"http://localhost:3000/tickets/2\" style=\"color: #1976d2; word-break: break-all;\">http://localhost:3000/tickets/2</a>\n              </p>\n            </td>\n          </tr>\n\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;\">\n              This notification was generated automatically by the IT Help Desk application.<br>\n              &copy; 2026 IT Help Desk Support Portal.\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+      "error_message": "Hostname/IP does not match certificate's altnames: Host: mail.email.transcocargo.lk. is not in the cert's altnames: DNS:*.dreamhost.com, DNS:dreamhost.com",
+      "created_at": "2026-09-24 11:24:08"
+    }
+  ],
+  "password_resets": [],
+  "nextUserId": 4,
+  "nextTicketId": 1,
+  "nextCommentId": 1,
+  "nextNotificationId": 4,
+  "nextPasswordResetId": 1
+}
