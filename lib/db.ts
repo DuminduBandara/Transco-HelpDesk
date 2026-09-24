@@ -62,16 +62,27 @@ export interface MockNotification {
   created_at: string;
 }
 
+export interface MockPasswordReset {
+  id: number;
+  user_id: number;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
 interface MockDbState {
   users: MockUser[];
   categories: MockCategory[];
   tickets: MockTicket[];
   comments: MockComment[];
   notifications: MockNotification[];
+  password_resets: MockPasswordReset[];
   nextUserId: number;
   nextTicketId: number;
   nextCommentId: number;
   nextNotificationId: number;
+  nextPasswordResetId: number;
 }
 
 function getInitialMockState(): MockDbState {
@@ -213,6 +224,8 @@ function getInitialMockState(): MockDbState {
     nextTicketId: 6,
     nextCommentId: 3,
     nextNotificationId: 4,
+    nextPasswordResetId: 1,
+    password_resets: [],
     notifications: [
       {
         id: 1,
@@ -296,11 +309,27 @@ if (process.env.NODE_ENV !== "production" && pool) {
 function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   const norm = sql.trim().replace(/\s+/g, " ");
 
-  // 1. SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ? LIMIT 1
-  if (norm.startsWith("SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ?")) {
+  // 1. SELECT ... FROM users WHERE email = ?
+  if (
+    norm.includes("FROM users WHERE email = ?") ||
+    norm.includes("FROM users WHERE email = ? LIMIT 1")
+  ) {
     const email = String(params[0] ?? "").toLowerCase();
     const user = mockDb.users.find((u) => u.email.toLowerCase() === email);
     return user ? ([{ ...user }] as unknown as T[]) : ([] as T[]);
+  }
+
+  // Password reset token lookup
+  if (norm.includes("FROM password_resets") && norm.includes("token = ?")) {
+    const token = String(params[0] ?? "");
+    const reset = mockDb.password_resets.find((r) => r.token === token);
+    if (!reset) return [] as T[];
+    const user = mockDb.users.find((u) => u.id === reset.user_id);
+    return [{
+      ...reset,
+      user_email: user?.email,
+      user_name: user?.name,
+    }] as unknown as T[];
   }
 
   // 2. Categories
@@ -738,6 +767,45 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       body_text: body_text ? String(body_text) : undefined,
       body_html: body_html ? String(body_html) : undefined,
       error_message: error_message ? String(error_message) : null,
+      created_at: now,
+    });
+    return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
+  }
+
+  // 9. Password Resets: invalidate existing tokens for user
+  if (norm.startsWith("UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL")) {
+    const userId = Number(params[0]);
+    let affected = 0;
+    for (const r of mockDb.password_resets) {
+      if (r.user_id === userId && !r.used_at) {
+        r.used_at = now;
+        affected++;
+      }
+    }
+    return { insertId: 0, affectedRows: affected } as mysql.ResultSetHeader;
+  }
+
+  // 10. Password Resets: mark token as used
+  if (norm.startsWith("UPDATE password_resets SET used_at = NOW() WHERE token = ?")) {
+    const token = String(params[0] ?? "");
+    const reset = mockDb.password_resets.find((r) => r.token === token);
+    if (reset) {
+      reset.used_at = now;
+      return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
+    }
+    return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
+  }
+
+  // 11. Password Resets: insert new token
+  if (norm.startsWith("INSERT INTO password_resets")) {
+    const [user_id, token, expires_at] = params as [number, string, string];
+    const id = mockDb.nextPasswordResetId++;
+    mockDb.password_resets.unshift({
+      id,
+      user_id: Number(user_id),
+      token: String(token),
+      expires_at: String(expires_at),
+      used_at: null,
       created_at: now,
     });
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;

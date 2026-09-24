@@ -151,6 +151,8 @@ export default function NotificationCenterModal({ open, onClose, isAdmin }: Prop
         return "Ticket Received (Employee)";
       case "ticket_resolved":
         return "Issue Fixed (Resolution)";
+      case "password_reset":
+        return "Password Reset Link";
       case "test":
         return "Diagnostic Test";
       default:

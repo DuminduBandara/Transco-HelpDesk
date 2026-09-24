@@ -52,7 +52,17 @@ export type NotificationType =
   | "ticket_created_admin"
   | "ticket_created_employee"
   | "ticket_resolved"
+  | "password_reset"
   | "test";
+
+export interface PasswordReset {
+  id: number;
+  user_id: number;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
 
 export interface EmailNotification {
   id: number;

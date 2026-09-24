@@ -530,6 +530,87 @@ IT Help Desk Support Team`;
   }
 }
 
+/**
+ * Trigger: When a user requests a password reset.
+ * - Sends a temporary password reset link valid for 60 minutes.
+ * - Logs the notification into email_notifications for auditing.
+ */
+export async function sendPasswordResetEmail({
+  recipientEmail,
+  recipientName,
+  token,
+  expiresMinutes = 60,
+}: {
+  recipientEmail: string;
+  recipientName: string;
+  token: string;
+  expiresMinutes?: number;
+}): Promise<{ success: boolean; status: "delivered" | "simulated" | "failed"; resetUrl: string; error?: string }> {
+  const baseUrl = getAppBaseUrl();
+  const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const subject = "[IT Help Desk] Password Reset Request";
+
+  const bodyHtml = `
+    <p style="margin-top: 0;">Hi <strong>${escapeHtml(recipientName)}</strong>,</p>
+    <p>We received a request to reset the password for your IT Help Desk account (<strong>${escapeHtml(recipientEmail)}</strong>).</p>
+
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #0f172a;">
+        Temporary Reset Authorization
+      </p>
+      <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">
+        Click the button below to choose a new password. This single-use link is valid for <strong>${expiresMinutes} minutes</strong> from when it was requested.
+      </p>
+    </div>
+
+    <p style="font-size: 14px; color: #475569; line-height: 1.6;">
+      If you did not request this change, please safely disregard this email. Your password will remain unchanged and your account is secure.
+    </p>
+
+    <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">
+      If the button above does not work, copy and paste this URL into your browser:<br/>
+      <a href="${resetUrl}" style="color: #1976d2; word-break: break-all;">${resetUrl}</a>
+    </p>
+  `;
+
+  const bodyText = `Hi ${recipientName},
+
+We received a request to reset the password for your IT Help Desk account (${recipientEmail}).
+
+Please use the following temporary link to set a new password (valid for ${expiresMinutes} minutes):
+${resetUrl}
+
+If you did not request this password reset, you can safely ignore this email. Your account remains secure.
+
+Best regards,
+IT Help Desk Security Team`;
+
+  const emailRes = await sendEmail({
+    ticketId: null,
+    recipientEmail,
+    recipientName,
+    subject,
+    type: "password_reset",
+    html: renderEmailTemplate({
+      headline: "Reset Your Account Password",
+      statusBadge: {
+        label: "Security Alert",
+        bg: "#fef3c7",
+        color: "#b45309",
+      },
+      bodyHtml,
+      ctaText: "Reset My Password",
+      ctaUrl: resetUrl,
+    }),
+    text: bodyText,
+  });
+
+  return {
+    ...emailRes,
+    resetUrl,
+  };
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
