@@ -32,6 +32,8 @@ import {
   DialogActions,
   IconButton,
 } from "@mui/material";
+import { RealtimeIndicator } from "@/components/RealtimeIndicator";
+import { useRealtime } from "@/hooks/useRealtime";
 import type { Ticket, TicketComment, EmailNotification } from "@/types";
 
 export default function TicketDetailPage() {
@@ -93,6 +95,23 @@ export default function TicketDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live real-time sync for incoming comments, ticket status changes, and notifications
+  const { isConnected, lastSyncTime } = useRealtime(
+    ["comment:created", "ticket:updated", "notification:created"],
+    (event) => {
+      const eventData = event.data as Record<string, unknown> | undefined;
+      const currentTicketId = Number(params.id);
+      if (
+        !eventData ||
+        eventData.ticket_id === currentTicketId ||
+        eventData.ticketId === currentTicketId ||
+        eventData.id === currentTicketId
+      ) {
+        load();
+      }
+    }
+  );
 
   async function handleSaveInternalNotes() {
     if (!ticket) return;
@@ -205,9 +224,24 @@ export default function TicketDetailPage() {
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto" }}>
-      <Button onClick={() => router.push("/tickets")} sx={{ mb: 2 }}>
-        ← Back to Tickets
-      </Button>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Button onClick={() => router.push("/tickets")}>
+          ← Back to Tickets
+        </Button>
+        <RealtimeIndicator
+          isConnected={isConnected}
+          lastSyncTime={lastSyncTime}
+          onRefresh={load}
+          isRefreshing={saving}
+        />
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

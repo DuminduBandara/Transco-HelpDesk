@@ -3,6 +3,7 @@ import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { updateTicketSchema } from "@/lib/validators";
 import { sendTicketResolvedNotification } from "@/lib/email";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { Ticket } from "@/types";
 
 async function getTicketOr404(id: number) {
@@ -146,6 +147,16 @@ export async function PATCH(
     }
   }
 
+  // Broadcast real-time ticket update
+  broadcastRealtimeEvent("ticket:updated", {
+    id: updated.id,
+    ticket: updated,
+    status: updated.status,
+    priority: updated.priority,
+    assigned_to: updated.assigned_to,
+  });
+  broadcastRealtimeEvent("stats:updated");
+
   return NextResponse.json({ ticket: updated });
 }
 
@@ -171,6 +182,9 @@ export async function DELETE(
   if (result.affectedRows === 0) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
+
+  broadcastRealtimeEvent("ticket:deleted", { id });
+  broadcastRealtimeEvent("stats:updated");
 
   return NextResponse.json({ success: true });
 }

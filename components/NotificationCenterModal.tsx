@@ -26,6 +26,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SendIcon from "@mui/icons-material/Send";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { useRealtime } from "@/hooks/useRealtime";
 import type { EmailNotification } from "@/types";
 
 interface Props {
@@ -72,6 +73,13 @@ export default function NotificationCenterModal({ open, onClose, isAdmin }: Prop
       setTestResult(null);
     }
   }, [open]);
+
+  // Live real-time update when new notifications are created
+  useRealtime(["notification:created"], () => {
+    if (open) {
+      loadNotifications();
+    }
+  });
 
   async function handleSendTestEmail() {
     setSendingTest(true);

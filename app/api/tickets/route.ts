@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createTicketSchema, ticketQuerySchema } from "@/lib/validators";
 import { sendTicketCreatedNotification } from "@/lib/email";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { Ticket } from "@/types";
 
 // GET /api/tickets — list tickets, scoped by role, filterable, paginated.
@@ -140,6 +141,19 @@ export async function POST(req: NextRequest) {
   }).catch((err) => {
     console.error("[Email] Error dispatching ticket creation notifications:", err);
   });
+
+  // Broadcast real-time updates to all connected staff and dashboards
+  broadcastRealtimeEvent("ticket:created", {
+    id: ticketId,
+    title,
+    priority,
+    status: "open",
+    category_id: category_id ?? null,
+    created_by: user.id,
+    created_by_name: user.name,
+    created_at: new Date().toISOString(),
+  });
+  broadcastRealtimeEvent("stats:updated");
 
   return NextResponse.json({ id: ticketId }, { status: 201 });
 }

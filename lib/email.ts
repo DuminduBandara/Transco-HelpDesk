@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { execute, query } from "@/lib/db";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { NotificationType } from "@/types";
 
 interface SendEmailOptions {
@@ -212,6 +213,16 @@ export async function sendEmail({
         errorMessage,
       ]
     );
+
+    broadcastRealtimeEvent("notification:created", {
+      ticket_id: ticketId ?? null,
+      recipient_email: recipientEmail,
+      recipient_name: recipientName,
+      subject,
+      type,
+      status,
+      created_at: new Date().toISOString(),
+    });
   } catch (err) {
     console.warn("[Email Notification] Could not record notification to DB:", (err as Error).message);
   }

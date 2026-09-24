@@ -22,6 +22,8 @@ import ClearIcon from "@mui/icons-material/Clear";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
+import { RealtimeIndicator } from "@/components/RealtimeIndicator";
+import { useRealtime } from "@/hooks/useRealtime";
 import type { Ticket, Category } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -95,6 +97,14 @@ export default function TicketsPage() {
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
+
+  // Connect to live real-time event stream
+  const { isConnected, lastSyncTime } = useRealtime(
+    ["ticket:created", "ticket:updated", "ticket:deleted"],
+    () => {
+      loadTickets();
+    }
+  );
 
   useEffect(() => {
     fetch("/api/categories")
@@ -186,9 +196,24 @@ export default function TicketsPage() {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-        Tickets
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight={600}>
+          Tickets
+        </Typography>
+        <RealtimeIndicator
+          isConnected={isConnected}
+          lastSyncTime={lastSyncTime}
+          onRefresh={loadTickets}
+          isRefreshing={loading}
+        />
+      </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack

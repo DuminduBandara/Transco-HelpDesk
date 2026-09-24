@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
 import { updateUserSchema } from "@/lib/validators";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 
 // PATCH /api/users/:id — admin only. Update role, department, active flag,
 // name, or reset password.
@@ -60,6 +61,8 @@ export async function PATCH(
 
   values.push(id);
   await execute(`UPDATE users SET ${setClauses.join(", ")} WHERE id = ?`, values);
+
+  broadcastRealtimeEvent("users:updated", { id, updates: rest });
 
   return NextResponse.json({ success: true });
 }

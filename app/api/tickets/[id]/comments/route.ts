@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createCommentSchema } from "@/lib/validators";
-import { notifyOnTicketComment } from "@/lib/notifications";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 import type { Ticket, TicketComment } from "@/types";
 
 async function canAccessTicket(
@@ -94,27 +94,15 @@ export async function POST(
     [ticketId, user.id, parsed.data.comment]
   );
 
-  // If an agent or admin adds a comment, send an email notification to the ticket creator
-  if (user.role === "agent" || user.role === "admin") {
-    const tRows = await query<Ticket>(
-      "SELECT id, title, created_by, status FROM tickets WHERE id = ? LIMIT 1",
-      [ticketId]
-    );
-    if (tRows[0]) {
-      await notifyOnTicketComment({
-        ticket: tRows[0],
-        comment: parsed.data.comment,
-        actor: {
-          id: user.id,
-          name: user.name ?? "Support Agent",
-          role: user.role,
-          email: user.email,
-        },
-      }).catch((err) => {
-        console.error("[Notification] Failed to send comment email:", err);
-      });
-    }
-  }
+  broadcastRealtimeEvent("comment:created", {
+    id: result.insertId,
+    ticket_id: ticketId,
+    user_id: user.id,
+    user_name: user.name,
+    user_role: user.role,
+    comment: parsed.data.comment,
+    created_at: new Date().toISOString(),
+  });
 
   return NextResponse.json({ id: result.insertId }, { status: 201 });
 }

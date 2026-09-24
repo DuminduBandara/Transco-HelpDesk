@@ -1,4 +1,6 @@
 import mysql from "mysql2/promise";
+import fs from "fs";
+import path from "path";
 import type { Role, TicketPriority, TicketStatus } from "@/types";
 
 declare global {
@@ -132,145 +134,48 @@ function getInitialMockState(): MockDbState {
       { id: 4, name: "Access Request" },
       { id: 5, name: "Other" },
     ],
-    tickets: [
-      {
-        id: 1,
-        title: "Dual monitor setup not detected after docking station update",
-        description: "Secondary display shows 'No Signal' after firmware update on Dell Thunderbolt dock. Tested with HDMI and DisplayPort cables.",
-        internal_notes: "Checked Dell dock firmware release notes; version 1.4.1 broke DisplayPort alternate mode on several Latitude laptops. Reverting or applying patch 1.4.3 is recommended.",
-        status: "open",
-        priority: "high",
-        category_id: 1,
-        created_by: 3,
-        assigned_to: null,
-        created_at: "2026-09-22 08:30:00",
-        updated_at: "2026-09-22 08:30:00",
-        resolved_at: null,
-      },
-      {
-        id: 2,
-        title: "Request access to Production Logs dashboard",
-        description: "Need read-only access to Datadog production log viewer for customer support investigations.",
-        internal_notes: "Waiting on security review ticket #SEC-492 before adding employee to Datadog read-only group.",
-        status: "in_progress",
-        priority: "medium",
-        category_id: 4,
-        created_by: 3,
-        assigned_to: 2,
-        created_at: "2026-09-23 11:15:00",
-        updated_at: "2026-09-23 13:40:00",
-        resolved_at: null,
-      },
-      {
-        id: 3,
-        title: "VPN client disconnection every 30 minutes",
-        description: "Cisco AnyConnect disconnects intermittently on home Wi-Fi with error code 412.",
-        internal_notes: "Home Wi-Fi router MTU was set to 1500 causing packet fragmentation; reduced to 1400 on the AnyConnect client XML profile.",
-        status: "resolved",
-        priority: "urgent",
-        category_id: 3,
-        created_by: 3,
-        assigned_to: 2,
-        created_at: "2026-09-21 14:00:00",
-        updated_at: "2026-09-22 10:00:00",
-        resolved_at: "2026-09-22 10:00:00",
-      },
-      {
-        id: 4,
-        title: "Printer spooler service hanging on Accounting floor",
-        description: "Network printer HP LaserJet 400 is queueing jobs but failing to output pages.",
-        internal_notes: "Cleared stuck print job owned by payroll batch and rebooted local print server service.",
-        status: "resolved",
-        priority: "medium",
-        category_id: 1,
-        created_by: 3,
-        assigned_to: 2,
-        created_at: "2026-08-15 09:20:00",
-        updated_at: "2026-08-16 15:30:00",
-        resolved_at: "2026-08-16 15:30:00",
-      },
-      {
-        id: 5,
-        title: "Upgrade RAM on development workstation #14",
-        description: "Installed additional 32GB DDR5 memory modules for local virtualization workloads.",
-        internal_notes: "Crucial CT2K16G48C40U5 kit verified with MemTest86 for 2 passes.",
-        status: "closed",
-        priority: "low",
-        category_id: 1,
-        created_by: 3,
-        assigned_to: 2,
-        created_at: "2026-08-18 10:00:00",
-        updated_at: "2026-08-20 16:00:00",
-        resolved_at: "2026-08-20 16:00:00",
-      },
-    ],
-    comments: [
-      {
-        id: 1,
-        ticket_id: 2,
-        user_id: 2,
-        comment: "I have requested approval from your team lead and will grant permissions once confirmed.",
-        created_at: "2026-09-23 13:40:00",
-      },
-      {
-        id: 2,
-        ticket_id: 3,
-        user_id: 2,
-        comment: "MTU size adjustment in adapter settings resolved the packet loss issue.",
-        created_at: "2026-09-22 10:00:00",
-      },
-    ],
-    nextUserId: 4,
-    nextTicketId: 6,
-    nextCommentId: 3,
-    nextNotificationId: 4,
-    nextPasswordResetId: 1,
+    tickets: [],
+    comments: [],
+    notifications: [],
     password_resets: [],
-    notifications: [
-      {
-        id: 1,
-        ticket_id: 1,
-        recipient_email: "admin@company.com",
-        recipient_name: "System Admin",
-        subject: "[IT Help Desk] New Ticket #1: Dual monitor setup not detected after docking station update",
-        type: "ticket_created_admin",
-        status: "delivered",
-        body_text: "New ticket submitted by John Employee (Operations). Priority: High. Category: Hardware.",
-        body_html: "<p>New ticket submitted by John Employee (Operations). Priority: High. Category: Hardware.</p>",
-        error_message: null,
-        created_at: "2026-09-20 14:30:00",
-      },
-      {
-        id: 2,
-        ticket_id: 1,
-        recipient_email: "employee@company.com",
-        recipient_name: "John Employee",
-        subject: "[IT Help Desk] Ticket #1 Received: Dual monitor setup not detected after docking station update",
-        type: "ticket_created_employee",
-        status: "delivered",
-        body_text: "Your ticket has been received and added to our IT support queue.",
-        body_html: "<p>Your ticket has been received and added to our IT support queue.</p>",
-        error_message: null,
-        created_at: "2026-09-20 14:30:05",
-      },
-      {
-        id: 3,
-        ticket_id: 4,
-        recipient_email: "employee@company.com",
-        recipient_name: "John Employee",
-        subject: "[IT Help Desk] Issue Resolved: Ticket #4 - Printer spooler service hanging on Accounting floor",
-        type: "ticket_resolved",
-        status: "delivered",
-        body_text: "Great news! Your ticket #4 has been marked as resolved by Sarah Agent.",
-        body_html: "<p>Great news! Your ticket #4 has been marked as resolved by Sarah Agent.</p>",
-        error_message: null,
-        created_at: "2026-08-16 15:30:00",
-      },
-    ],
+    nextUserId: 4,
+    nextTicketId: 1,
+    nextCommentId: 1,
+    nextNotificationId: 1,
+    nextPasswordResetId: 1,
   };
 }
 
-const mockDb: MockDbState = globalThis._mockDbState ?? getInitialMockState();
+const DATA_DIR = path.join(process.cwd(), "data");
+const DB_FILE = path.join(DATA_DIR, "db-store.json");
+
+function loadPersistedState(): MockDbState {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.tickets)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error("[DB Store] Failed to load persisted state:", err);
+  }
+  return getInitialMockState();
+}
+
+export function persistState() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(mockDb, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[DB Store] Failed to save state:", err);
+  }
+}
+
+const mockDb: MockDbState = globalThis._mockDbState ?? loadPersistedState();
 if (process.env.NODE_ENV !== "production") {
   globalThis._mockDbState = mockDb;
 }
@@ -564,9 +469,9 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
 }
 
 /**
- * Executes a mock mutation against in-memory mock store
+ * Executes a mock mutation against persistent store
  */
-function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader {
+function runMockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader {
   const norm = sql.trim().replace(/\s+/g, " ");
   const now = formatDate();
 
@@ -813,6 +718,14 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   console.warn("[Mock DB] Unmatched execute:", sql, params);
   return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
+}
+
+function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader {
+  const result = runMockExecute(sql, params);
+  if (result.affectedRows > 0 || result.insertId > 0) {
+    persistState();
+  }
+  return result;
 }
 
 /**
