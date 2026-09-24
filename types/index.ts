@@ -45,3 +45,19 @@ export interface Category {
   id: number;
   name: string;
 }
+
+export interface EmailNotification {
+  id: number;
+  ticket_id: number;
+  ticket_title: string;
+  recipient_id: number;
+  recipient_email: string;
+  recipient_name: string;
+  sender_name: string;
+  type: "status_update" | "new_comment";
+  subject: string;
+  preview: string;
+  html_body: string;
+  sent_at: string;
+  read: boolean;
+}

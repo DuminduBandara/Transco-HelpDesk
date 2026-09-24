@@ -47,14 +47,32 @@ interface MockComment {
   created_at: string;
 }
 
+export interface MockNotification {
+  id: number;
+  ticket_id: number;
+  ticket_title: string;
+  recipient_id: number;
+  recipient_email: string;
+  recipient_name: string;
+  sender_name: string;
+  type: "status_update" | "new_comment";
+  subject: string;
+  preview: string;
+  html_body: string;
+  sent_at: string;
+  is_read: number;
+}
+
 interface MockDbState {
   users: MockUser[];
   categories: MockCategory[];
   tickets: MockTicket[];
   comments: MockComment[];
+  notifications: MockNotification[];
   nextUserId: number;
   nextTicketId: number;
   nextCommentId: number;
+  nextNotificationId: number;
 }
 
 function getInitialMockState(): MockDbState {
@@ -144,6 +162,32 @@ function getInitialMockState(): MockDbState {
         updated_at: "2026-09-22 10:00:00",
         resolved_at: "2026-09-22 10:00:00",
       },
+      {
+        id: 4,
+        title: "Printer spooler service hanging on Accounting floor",
+        description: "Network printer HP LaserJet 400 is queueing jobs but failing to output pages.",
+        status: "resolved",
+        priority: "medium",
+        category_id: 1,
+        created_by: 3,
+        assigned_to: 2,
+        created_at: "2026-08-15 09:20:00",
+        updated_at: "2026-08-16 15:30:00",
+        resolved_at: "2026-08-16 15:30:00",
+      },
+      {
+        id: 5,
+        title: "Upgrade RAM on development workstation #14",
+        description: "Installed additional 32GB DDR5 memory modules for local virtualization workloads.",
+        status: "closed",
+        priority: "low",
+        category_id: 1,
+        created_by: 3,
+        assigned_to: 2,
+        created_at: "2026-08-18 10:00:00",
+        updated_at: "2026-08-20 16:00:00",
+        resolved_at: "2026-08-20 16:00:00",
+      },
     ],
     comments: [
       {
@@ -161,9 +205,27 @@ function getInitialMockState(): MockDbState {
         created_at: "2026-09-22 10:00:00",
       },
     ],
+    notifications: [
+      {
+        id: 1,
+        ticket_id: 2,
+        ticket_title: "Request for AWS Production Console access",
+        recipient_id: 3,
+        recipient_email: "employee@company.com",
+        recipient_name: "John Doe",
+        sender_name: "Sarah Support",
+        type: "new_comment",
+        subject: "[IT Helpdesk] New comment on Ticket #2: Request for AWS Production Console access",
+        preview: "Agent Sarah Support commented: \"I have requested approval from your team lead and will grant permissions once confirmed.\"",
+        html_body: "<p>Agent <strong>Sarah Support</strong> commented on your ticket.</p>",
+        sent_at: "2026-09-23 13:40:05",
+        is_read: 0,
+      },
+    ],
     nextUserId: 4,
-    nextTicketId: 4,
+    nextTicketId: 6,
     nextCommentId: 3,
+    nextNotificationId: 2,
   };
 }
 
@@ -264,6 +326,28 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
         assigned_to_name: au ? au.name : null,
       },
     ] as unknown as T[];
+  }
+
+  // 7b. Monthly report query: tickets within created_at range
+  if (norm.includes("FROM tickets t") && norm.includes("t.created_at >= ? AND t.created_at <= ?")) {
+    const start = String(params[0]);
+    const end = String(params[1]);
+    const list = mockDb.tickets
+      .filter((t) => t.created_at >= start && t.created_at <= end)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const rows = list.map((t) => {
+      const cat = mockDb.categories.find((c) => c.id === t.category_id);
+      const cu = mockDb.users.find((u) => u.id === t.created_by);
+      const au = mockDb.users.find((u) => u.id === t.assigned_to);
+      return {
+        ...t,
+        category_name: cat ? cat.name : null,
+        created_by_name: cu ? cu.name : "Unknown",
+        created_by_email: cu ? cu.email : "",
+        assigned_to_name: au ? au.name : "Unassigned",
+      };
+    });
+    return rows as unknown as T[];
   }
 
   // 8. Tickets list with filters and pagination
@@ -391,7 +475,21 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   if (norm.includes("FROM users WHERE id = ?")) {
     const id = Number(params[0]);
     const u = mockDb.users.find((user) => user.id === id);
-    return u ? ([{ id: u.id }] as unknown as T[]) : ([] as T[]);
+    return u ? ([{ id: u.id, name: u.name, email: u.email, role: u.role }] as unknown as T[]) : ([] as T[]);
+  }
+
+  // 15. Notifications lookup: SELECT * FROM notifications WHERE recipient_id = ?
+  if (norm.includes("FROM notifications")) {
+    let list = [...(mockDb.notifications ?? [])];
+    if (norm.includes("WHERE recipient_id = ?")) {
+      const recipientId = Number(params[0]);
+      list = list.filter((n) => n.recipient_id === recipientId);
+    }
+    list.sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+    return list.map((n) => ({
+      ...n,
+      read: Boolean(n.is_read),
+    })) as unknown as T[];
   }
 
   console.warn("[Mock DB] Unmatched query:", sql, params);
@@ -561,6 +659,64 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
     }
     user.updated_at = now;
     return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
+  }
+
+  // 8. Insert notification
+  if (norm.startsWith("INSERT INTO notifications")) {
+    const [
+      ticket_id,
+      ticket_title,
+      recipient_id,
+      recipient_email,
+      recipient_name,
+      sender_name,
+      type,
+      subject,
+      preview,
+      html_body,
+    ] = params as [
+      number,
+      string,
+      number,
+      string,
+      string,
+      string,
+      "status_update" | "new_comment",
+      string,
+      string,
+      string
+    ];
+    if (!mockDb.notifications) mockDb.notifications = [];
+    const id = mockDb.nextNotificationId++;
+    mockDb.notifications.unshift({
+      id,
+      ticket_id,
+      ticket_title,
+      recipient_id,
+      recipient_email,
+      recipient_name,
+      sender_name,
+      type,
+      subject,
+      preview,
+      html_body,
+      sent_at: now,
+      is_read: 0,
+    });
+    return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
+  }
+
+  // 9. Mark notifications as read: UPDATE notifications SET is_read = 1 WHERE recipient_id = ?
+  if (norm.startsWith("UPDATE notifications SET is_read = 1")) {
+    if (norm.includes("WHERE recipient_id = ?")) {
+      const recipientId = Number(params[0]);
+      if (mockDb.notifications) {
+        mockDb.notifications.forEach((n) => {
+          if (n.recipient_id === recipientId) n.is_read = 1;
+        });
+      }
+      return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
+    }
   }
 
   console.warn("[Mock DB] Unmatched execute:", sql, params);

@@ -16,7 +16,11 @@ import {
   CircularProgress,
   Alert,
   Grid,
+  Snackbar,
+  Chip,
 } from "@mui/material";
+import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
 import type { Ticket, TicketComment } from "@/types";
@@ -37,6 +41,7 @@ export default function TicketDetailPage() {
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +90,11 @@ export default function TicketDetailPage() {
     }
     const data = await res.json();
     setTicket(data.ticket);
+    if (patch.status) {
+      setFeedback(`Status updated to "${patch.status}". An email alert has been sent to the ticket creator.`);
+    } else {
+      setFeedback("Ticket details updated successfully.");
+    }
   }
 
   async function claimTicket() {
@@ -93,7 +103,10 @@ export default function TicketDetailPage() {
       method: "POST",
     });
     setSaving(false);
-    if (res.ok) load();
+    if (res.ok) {
+      setFeedback("Ticket claimed. An email notification has been dispatched to the creator.");
+      load();
+    }
   }
 
   async function submitComment(e: React.FormEvent) {
@@ -108,6 +121,11 @@ export default function TicketDetailPage() {
     setPosting(false);
     if (res.ok) {
       setNewComment("");
+      if (isStaff) {
+        setFeedback("Comment posted. An email notification has been delivered to the ticket creator.");
+      } else {
+        setFeedback("Comment posted successfully.");
+      }
       load();
     }
   }
@@ -198,11 +216,25 @@ export default function TicketDetailPage() {
           </Grid>
         </Grid>
 
+        <Box sx={{ mt: 2.5, pt: 1.5, borderTop: "1px dashed", borderColor: "divider", display: "flex", alignItems: "center" }}>
+          <Chip
+            icon={<MailOutlineIcon sx={{ fontSize: 16 }} />}
+            label={`Email alerts enabled: ${ticket.created_by_name ?? "Ticket creator"} receives instant email notifications on status updates and agent comments`}
+            size="small"
+            variant="outlined"
+            color="primary"
+            sx={{ fontSize: "0.75rem" }}
+          />
+        </Box>
+
         {isStaff && (
           <>
             <Divider sx={{ my: 3 }} />
-            <Typography variant="subtitle2" sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
               Manage Ticket
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+              Updating ticket status will automatically dispatch an email alert to {ticket.created_by_name ?? "the creator"}.
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
@@ -299,7 +331,13 @@ export default function TicketDetailPage() {
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
           />
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1, alignItems: "center", gap: 2 }}>
+            {isStaff && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <MailOutlineIcon sx={{ fontSize: 15, color: "primary.main" }} />
+                Posting will email the ticket creator
+              </Typography>
+            )}
             <Button
               type="submit"
               variant="contained"
@@ -310,6 +348,14 @@ export default function TicketDetailPage() {
           </Box>
         </Box>
       </Paper>
+
+      <Snackbar
+        open={Boolean(feedback)}
+        autoHideDuration={5000}
+        onClose={() => setFeedback(null)}
+        message={feedback}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
     </Box>
   );
 }

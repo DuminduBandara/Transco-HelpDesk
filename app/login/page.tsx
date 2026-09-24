@@ -103,44 +103,6 @@ export default function LoginPage() {
             </Button>
           </Stack>
         </Box>
-
-        <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Quick Demo Accounts (Password: <code>Admin@123</code>):
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => {
-                setEmail("admin@company.com");
-                setPassword("Admin@123");
-              }}
-            >
-              Admin
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => {
-                setEmail("agent@company.com");
-                setPassword("Admin@123");
-              }}
-            >
-              Agent
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => {
-                setEmail("employee@company.com");
-                setPassword("Admin@123");
-              }}
-            >
-              Employee
-            </Button>
-          </Stack>
-        </Box>
       </Paper>
     </Box>
   );

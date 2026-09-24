@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AddIcon from "@mui/icons-material/Add";
+import NotificationBell from "@/components/NotificationBell";
 
 const ROLE_LABEL: Record<string, string> = {
   employee: "Employee",
@@ -89,6 +90,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             New Ticket
           </Button>
+
+          <NotificationBell />
 
           {role && (
             <Chip

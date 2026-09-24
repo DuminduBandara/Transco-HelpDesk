@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { updateTicketSchema } from "@/lib/validators";
+import { notifyOnTicketStatusChange } from "@/lib/notifications";
 import type { Ticket } from "@/types";
 
 async function getTicketOr404(id: number) {
@@ -108,6 +109,23 @@ export async function PATCH(
   );
 
   const updated = await getTicketOr404(id);
+
+  if (data.status && data.status !== existing.status && updated) {
+    await notifyOnTicketStatusChange({
+      ticket: updated,
+      oldStatus: existing.status,
+      newStatus: data.status,
+      actor: {
+        id: user.id,
+        name: user.name ?? "Support Agent",
+        role: user.role,
+        email: user.email,
+      },
+    }).catch((err) => {
+      console.error("[Notification] Failed to send status update email:", err);
+    });
+  }
+
   return NextResponse.json({ ticket: updated });
 }
 
