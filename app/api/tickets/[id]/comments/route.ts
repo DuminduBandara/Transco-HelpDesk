@@ -15,7 +15,7 @@ async function canAccessTicket(
   );
   const ticket = rows[0];
   if (!ticket) return { ok: false, status: 404 as const };
-  if (user.role === "employee" && ticket.created_by !== user.id) {
+  if (user.role === "employee" && Number(ticket.created_by) !== Number(user.id)) {
     return { ok: false, status: 403 as const };
   }
   return { ok: true as const };

@@ -87,11 +87,23 @@ export default function TicketsPage() {
     if (priority) params.set("priority", priority);
     if (categoryId) params.set("category_id", categoryId);
 
-    const res = await fetch(`/api/tickets?${params.toString()}`);
-    const data = await res.json();
-    setRows(data.tickets ?? []);
-    setRowCount(data.total ?? 0);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/tickets?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRows(Array.isArray(data.tickets) ? data.tickets : []);
+        setRowCount(typeof data.total === "number" ? data.total : 0);
+      } else {
+        setRows([]);
+        setRowCount(0);
+      }
+    } catch (err) {
+      console.error("Error fetching tickets:", err);
+      setRows([]);
+      setRowCount(0);
+    } finally {
+      setLoading(false);
+    }
   }, [debouncedSearch, status, priority, categoryId, paginationModel]);
 
   useEffect(() => {
@@ -302,6 +314,7 @@ export default function TicketsPage() {
         {mounted ? (
           <DataGrid
             rows={rows}
+            getRowId={(row) => row.id}
             columns={columns}
             rowCount={rowCount}
             loading={loading}

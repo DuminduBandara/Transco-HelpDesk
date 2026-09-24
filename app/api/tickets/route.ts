@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   // Employees are hard-scoped to their own tickets, regardless of query params.
   if (user.role === "employee") {
     where.push("t.created_by = ?");
-    params.push(user.id);
+    params.push(Number(user.id));
   }
 
   if (search) {
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
   const result = await execute(
     `INSERT INTO tickets (title, description, priority, category_id, created_by, status)
      VALUES (?, ?, ?, ?, ?, 'open')`,
-    [title, description, priority, category_id ?? null, user.id]
+    [title, description, priority, category_id ? Number(category_id) : null, Number(user.id)]
   );
 
   const ticketId = result.insertId;

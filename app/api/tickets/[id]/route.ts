@@ -46,7 +46,7 @@ export async function GET(
   }
 
   // Employees may only view their own tickets.
-  if (user.role === "employee" && ticket.created_by !== user.id) {
+  if (user.role === "employee" && Number(ticket.created_by) !== Number(user.id)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
