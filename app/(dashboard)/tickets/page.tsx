@@ -12,6 +12,7 @@ import {
   Stack,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -42,6 +43,7 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const [mounted, setMounted] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -51,6 +53,10 @@ export default function TicketsPage() {
     page: 0,
     pageSize: 25,
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Debounce search input changes
   useEffect(() => {
@@ -233,22 +239,35 @@ export default function TicketsPage() {
       </Paper>
 
       <Paper sx={{ height: 600 }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          rowCount={rowCount}
-          loading={loading}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 25, 50]}
-          disableRowSelectionOnClick
-          onRowClick={(params) => router.push(`/tickets/${params.id}`)}
-          sx={{
-            border: "none",
-            "& .MuiDataGrid-row": { cursor: "pointer" },
-          }}
-        />
+        {mounted ? (
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            rowCount={rowCount}
+            loading={loading}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[10, 25, 50]}
+            disableRowSelectionOnClick
+            onRowClick={(params) => router.push(`/tickets/${params.id}`)}
+            sx={{
+              border: "none",
+              "& .MuiDataGrid-row": { cursor: "pointer" },
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
       </Paper>
     </Box>
   );
