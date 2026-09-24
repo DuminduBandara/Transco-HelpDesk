@@ -278,13 +278,34 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
     norm.includes("FROM users WHERE email = ?") ||
     norm.includes("FROM users WHERE email = ? LIMIT 1")
   ) {
-    const email = String(params[0] ?? "").trim().toLowerCase();
-    let user = mockDb.users.find((u) => u.email.trim().toLowerCase() === email);
-    if (!user && (email === "lakshand969@gmail.com" || email.includes("lakshand969"))) {
+    const rawInput = String(params[0] ?? "").trim();
+    const input = rawInput.toLowerCase();
+
+    // Direct match by email
+    let user = mockDb.users.find((u) => u.email.trim().toLowerCase() === input);
+
+    // Support common aliases (username instead of email)
+    if (!user) {
+      if (input === "admin" || input === "administrator" || input.includes("admin@")) {
+        user = mockDb.users.find((u) => u.email === "admin@company.com") || mockDb.users.find((u) => u.role === "admin");
+      } else if (input === "agent" || input.includes("agent@")) {
+        user = mockDb.users.find((u) => u.email === "agent@company.com") || mockDb.users.find((u) => u.role === "agent");
+      } else if (input === "employee" || input === "user" || input.includes("employee@")) {
+        user = mockDb.users.find((u) => u.email === "employee@company.com") || mockDb.users.find((u) => u.role === "employee");
+      } else if (input.includes("lakshan") || input.includes("lakshand")) {
+        user = mockDb.users.find((u) => u.email.includes("lakshand969") || u.name.toLowerCase().includes("lakshan"));
+      } else {
+        // Match by user display name
+        user = mockDb.users.find((u) => u.name.trim().toLowerCase() === input);
+      }
+    }
+
+    // Auto-provision lakshand969 if not yet present
+    if (!user && (input === "lakshand969@gmail.com" || input.includes("lakshand969") || input.includes("lakshan"))) {
       user = {
         id: Math.max(...mockDb.users.map((u) => Number(u.id) || 0), 0) + 1,
         name: "Lakshan",
-        email: email,
+        email: "lakshand969@gmail.com",
         password_hash: DEFAULT_PASSWORD_HASH,
         role: "admin",
         department: "IT",
@@ -296,6 +317,7 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
       mockDb.nextUserId = Math.max(mockDb.nextUserId, user.id + 1);
       persistState();
     }
+
     if (!user) return [] as T[];
     return [
       {

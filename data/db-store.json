@@ -4,23 +4,23 @@
       "id": 1,
       "name": "System Admin",
       "email": "admin@company.com",
-      "password_hash": "$2a$10$sEyu9n.dVkkO70Zv.Tk6/.ZfvpKI6eJk3By9WR1laeEtBo7wsnMWu",
+      "password_hash": "$2a$10$qxolVG5gQO43JrftCz98j.WWMvOD4MO/1pmXdqvH1THVj7AWOu.0y",
       "role": "admin",
       "department": "IT",
       "is_active": 1,
       "created_at": "2026-01-01 09:00:00",
-      "updated_at": "2026-09-24 15:43:05"
+      "updated_at": "2026-09-24 16:05:19"
     },
     {
       "id": 2,
       "name": "Sarah Agent",
       "email": "agent@company.com",
-      "password_hash": "$2a$10$/1aiqAOWlRXVXBBM/m49kO9PcS2jWFEn6yGXlL1DrzVTA5nrLHq4O",
+      "password_hash": "$2a$10$QXD0qMTukgFHbk.s96sZL.8TjAAR7g.Oz0AaGadNlawG/nwGoXjd6",
       "role": "agent",
       "department": "IT Support",
       "is_active": 1,
       "created_at": "2026-01-02 10:00:00",
-      "updated_at": "2026-09-24 15:47:23"
+      "updated_at": "2026-09-24 16:05:20"
     },
     {
       "id": 3,
@@ -37,12 +37,23 @@
       "id": 4,
       "name": "Lakshan",
       "email": "lakshand969@gmail.com",
-      "password_hash": "$2a$10$9L7r6b/CucMO6BvBNupFjOeMaWcef3w4Cjh9aop/DcXXuYG7Xus9O",
+      "password_hash": "$2a$10$8BsAABfIEvaG9b9Pw1j.Sej.J0uXa.9g7I8PQCSymjNcU.DZJXVJ6",
       "role": "admin",
       "department": "IT",
       "is_active": 1,
       "created_at": "2026-01-04 12:00:00",
-      "updated_at": "2026-09-24 15:43:29"
+      "updated_at": "2026-09-24 16:05:19"
+    },
+    {
+      "id": 5,
+      "name": "Lakshan",
+      "email": "lakshand969",
+      "password_hash": "$2a$10$1.hiHLpa5B5gNhQ6X4N91uK9mLli8xjOk1G0PKc0tGZpRP2cD0BQu",
+      "role": "admin",
+      "department": "IT",
+      "is_active": 1,
+      "created_at": "2026-09-24 16:02:17",
+      "updated_at": "2026-09-24 16:02:17"
     }
   ],
   "categories": [
@@ -195,7 +206,7 @@
     }
   ],
   "password_resets": [],
-  "nextUserId": 4,
+  "nextUserId": 6,
   "nextTicketId": 6,
   "nextCommentId": 1,
   "nextNotificationId": 5,

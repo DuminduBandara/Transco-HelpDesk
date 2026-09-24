@@ -15,6 +15,8 @@ import {
   Divider,
   Chip,
   Tooltip,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -22,6 +24,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import SendIcon from "@mui/icons-material/Send";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
 
 function LoginContent() {
   const router = useRouter();
@@ -32,8 +37,10 @@ function LoginContent() {
   // Sign In state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [directLoadingRole, setDirectLoadingRole] = useState<string | null>(null);
   const [loginSuccessNotice, setLoginSuccessNotice] = useState<string | null>(null);
 
   // Forgot Password state
@@ -65,25 +72,60 @@ function LoginContent() {
     const cleanPassword = password.trim();
 
     if (!cleanEmail || !cleanPassword) {
-      setLoginError("Please enter both email and password.");
+      setLoginError("Please enter both email/username and password.");
       setLoginLoading(false);
       return;
     }
 
-    const result = await signIn("credentials", {
-      email: cleanEmail,
-      password: cleanPassword,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: cleanEmail,
+        password: cleanPassword,
+        redirect: false,
+      });
 
-    setLoginLoading(false);
+      setLoginLoading(false);
 
-    if (result?.error) {
-      setLoginError("Invalid email or password. Use Admin@123 or select a demo account below.");
-      return;
+      if (result?.error) {
+        setLoginError("Login failed. Please check credentials or use 1-click login below.");
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setLoginLoading(false);
+      setLoginError("Connection issue during sign-in. Please try again or use 1-click demo login below.");
     }
-    router.push("/dashboard");
-    router.refresh();
+  }
+
+  async function handleDirectLogin(demoEmail: string, roleLabel: string, demoPassword = "Admin@123") {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setLoginError(null);
+    setDirectLoadingRole(roleLabel);
+    setLoginLoading(true);
+
+    try {
+      const result = await signIn("credentials", {
+        email: demoEmail.trim(),
+        password: demoPassword.trim(),
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setLoginError(`Login failed for ${demoEmail}. Try again or reset password.`);
+        setLoginLoading(false);
+        setDirectLoadingRole(null);
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setLoginError("Connection issue during sign-in. Please try again.");
+      setLoginLoading(false);
+      setDirectLoadingRole(null);
+    }
   }
 
   function handleQuickFill(demoEmail: string, demoRole: string) {
@@ -184,25 +226,41 @@ function LoginContent() {
                 <TextField
                   id="login-email"
                   name="email"
-                  label="Work Email"
-                  type="email"
+                  label="Email or Username"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  placeholder="admin@company.com or lakshand969"
                   required
                   fullWidth
-                  autoComplete="email"
+                  autoComplete="username"
+                  inputProps={{ autoCapitalize: "none", inputMode: "email" }}
+                  helperText="Enter email or username (e.g., admin, lakshand969, agent, employee)"
                 />
                 <TextField
                   id="login-password"
                   name="password"
                   label="Password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   fullWidth
                   autoComplete="current-password"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          edge="end"
+                          size="small"
+                        >
+                          {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
 
                 <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
@@ -235,7 +293,7 @@ function LoginContent() {
                   fullWidth
                   sx={{ py: 1.2, fontWeight: 600 }}
                 >
-                  {loginLoading ? (
+                  {loginLoading && !directLoadingRole ? (
                     <Stack direction="row" spacing={1} alignItems="center">
                       <CircularProgress size={18} color="inherit" />
                       <span>Signing in...</span>
@@ -246,8 +304,8 @@ function LoginContent() {
                 </Button>
 
                 <Divider sx={{ my: 1.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Demo Credentials (1-Click Fill)
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Instant 1-Click Demo Login
                   </Typography>
                 </Divider>
 
@@ -255,56 +313,103 @@ function LoginContent() {
                   sx={{
                     bgcolor: "grey.50",
                     p: 2,
-                    borderRadius: 1.5,
+                    borderRadius: 2,
                     border: "1px solid",
                     borderColor: "grey.200",
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                    Default Password: <strong>Admin@123</strong> (or admin123)
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+                    Click below to sign in instantly with full permissions (Default: <strong>Admin@123</strong>):
                   </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Tooltip title="admin@company.com">
+
+                  <Stack spacing={1}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<FlashOnIcon fontSize="small" />}
+                      disabled={loginLoading}
+                      onClick={() => handleDirectLogin("admin@company.com", "Admin")}
+                      sx={{ textTransform: "none", justifyContent: "flex-start", fontWeight: 600 }}
+                    >
+                      {directLoadingRole === "Admin" ? "Signing in as Admin..." : "Sign in as Admin (admin@company.com)"}
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      size="small"
+                      startIcon={<FlashOnIcon fontSize="small" />}
+                      disabled={loginLoading}
+                      onClick={() => handleDirectLogin("lakshand969@gmail.com", "Lakshan")}
+                      sx={{ textTransform: "none", justifyContent: "flex-start", fontWeight: 600 }}
+                    >
+                      {directLoadingRole === "Lakshan" ? "Signing in as Lakshan..." : "Sign in as Lakshan (lakshand969@gmail.com)"}
+                    </Button>
+
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        color="info"
+                        size="small"
+                        fullWidth
+                        disabled={loginLoading}
+                        onClick={() => handleDirectLogin("agent@company.com", "Agent")}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        {directLoadingRole === "Agent" ? "Signing in..." : "Agent"}
+                      </Button>
+
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        fullWidth
+                        disabled={loginLoading}
+                        onClick={() => handleDirectLogin("employee@company.com", "Employee")}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        {directLoadingRole === "Employee" ? "Signing in..." : "Employee"}
+                      </Button>
+                    </Stack>
+                  </Stack>
+
+                  <Box sx={{ mt: 1.5, pt: 1, borderTop: "1px dashed", borderColor: "grey.300" }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                      Quick Fill Inputs Only:
+                    </Typography>
+                    <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
                       <Chip
                         label="Admin"
-                        color="primary"
-                        variant={email === "admin@company.com" ? "filled" : "outlined"}
                         size="small"
+                        variant={email.includes("admin") ? "filled" : "outlined"}
                         onClick={() => handleQuickFill("admin@company.com", "Admin")}
-                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                        sx={{ cursor: "pointer", fontSize: "0.75rem" }}
                       />
-                    </Tooltip>
-                    <Tooltip title="agent@company.com">
-                      <Chip
-                        label="Agent"
-                        color="info"
-                        variant={email === "agent@company.com" ? "filled" : "outlined"}
-                        size="small"
-                        onClick={() => handleQuickFill("agent@company.com", "Support Agent")}
-                        sx={{ cursor: "pointer", fontWeight: 600 }}
-                      />
-                    </Tooltip>
-                    <Tooltip title="employee@company.com">
-                      <Chip
-                        label="Employee"
-                        color="default"
-                        variant={email === "employee@company.com" ? "filled" : "outlined"}
-                        size="small"
-                        onClick={() => handleQuickFill("employee@company.com", "Employee")}
-                        sx={{ cursor: "pointer", fontWeight: 600 }}
-                      />
-                    </Tooltip>
-                    <Tooltip title="lakshand969@gmail.com">
                       <Chip
                         label="lakshand969"
-                        color="secondary"
-                        variant={email === "lakshand969@gmail.com" ? "filled" : "outlined"}
                         size="small"
-                        onClick={() => handleQuickFill("lakshand969@gmail.com", "Admin")}
-                        sx={{ cursor: "pointer", fontWeight: 600 }}
+                        color="secondary"
+                        variant={email.includes("lakshan") ? "filled" : "outlined"}
+                        onClick={() => handleQuickFill("lakshand969@gmail.com", "Lakshan")}
+                        sx={{ cursor: "pointer", fontSize: "0.75rem" }}
                       />
-                    </Tooltip>
-                  </Stack>
+                      <Chip
+                        label="Agent"
+                        size="small"
+                        variant={email.includes("agent") ? "filled" : "outlined"}
+                        onClick={() => handleQuickFill("agent@company.com", "Agent")}
+                        sx={{ cursor: "pointer", fontSize: "0.75rem" }}
+                      />
+                      <Chip
+                        label="Employee"
+                        size="small"
+                        variant={email.includes("employee") ? "filled" : "outlined"}
+                        onClick={() => handleQuickFill("employee@company.com", "Employee")}
+                        sx={{ cursor: "pointer", fontSize: "0.75rem" }}
+                      />
+                    </Stack>
+                  </Box>
                 </Box>
               </Stack>
             </Box>
