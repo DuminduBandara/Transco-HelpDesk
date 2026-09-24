@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import {
@@ -20,6 +20,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    emailInputRef.current?.focus();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,17 +78,23 @@ export default function LoginPage() {
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <TextField
+              id="login-email"
+              name="email"
               label="Email"
               type="email"
+              autoComplete="email"
+              inputRef={emailInputRef}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               fullWidth
-              autoFocus
             />
             <TextField
+              id="login-password"
+              name="password"
               label="Password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
