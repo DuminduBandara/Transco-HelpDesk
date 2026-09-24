@@ -18,12 +18,14 @@ export interface Ticket {
   id: number;
   title: string;
   description: string;
+  internal_notes?: string | null;
   status: TicketStatus;
   priority: TicketPriority;
   category_id: number | null;
   category_name?: string | null;
   created_by: number;
   created_by_name?: string;
+  created_by_email?: string;
   assigned_to: number | null;
   assigned_to_name?: string | null;
   created_at: string;
@@ -46,18 +48,22 @@ export interface Category {
   name: string;
 }
 
+export type NotificationType =
+  | "ticket_created_admin"
+  | "ticket_created_employee"
+  | "ticket_resolved"
+  | "test";
+
 export interface EmailNotification {
   id: number;
-  ticket_id: number;
-  ticket_title: string;
-  recipient_id: number;
+  ticket_id: number | null;
   recipient_email: string;
   recipient_name: string;
-  sender_name: string;
-  type: "status_update" | "new_comment";
   subject: string;
-  preview: string;
-  html_body: string;
-  sent_at: string;
-  read: boolean;
+  type: NotificationType;
+  status: "delivered" | "simulated" | "failed";
+  body_text?: string;
+  body_html?: string;
+  error_message?: string | null;
+  created_at: string;
 }

@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { updateTicketSchema } from "@/lib/validators";
-import { notifyOnTicketStatusChange } from "@/lib/notifications";
+import { sendTicketResolvedNotification } from "@/lib/email";
 import type { Ticket } from "@/types";
 
 async function getTicketOr404(id: number) {
-  const rows = await query<Ticket>(
+  const rows = await query<Ticket & { created_by_email?: string }>(
     `SELECT
-       t.id, t.title, t.description, t.status, t.priority,
+       t.id, t.title, t.description, t.internal_notes, t.status, t.priority,
        t.category_id, c.name AS category_name,
-       t.created_by, cu.name AS created_by_name,
+       t.created_by, cu.name AS created_by_name, cu.email AS created_by_email,
        t.assigned_to, au.name AS assigned_to_name,
        t.created_at, t.updated_at, t.resolved_at
      FROM tickets t
@@ -47,6 +47,11 @@ export async function GET(
   // Employees may only view their own tickets.
   if (user.role === "employee" && ticket.created_by !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Internal Notes: only visible to agents and admins; strip for employees
+  if (user.role === "employee") {
+    delete (ticket as unknown as Record<string, unknown>).internal_notes;
   }
 
   return NextResponse.json({ ticket });
@@ -110,20 +115,35 @@ export async function PATCH(
 
   const updated = await getTicketOr404(id);
 
-  if (data.status && data.status !== existing.status && updated) {
-    await notifyOnTicketStatusChange({
-      ticket: updated,
-      oldStatus: existing.status,
-      newStatus: data.status,
-      actor: {
-        id: user.id,
-        name: user.name ?? "Support Agent",
-        role: user.role,
-        email: user.email,
-      },
-    }).catch((err) => {
-      console.error("[Notification] Failed to send status update email:", err);
-    });
+  // Trigger email notification when IT Admin / Agent resolves or closes the issue
+  const isResolving =
+    (data.status === "resolved" || data.status === "closed") &&
+    existing.status !== data.status;
+
+  if (isResolving && updated) {
+    const recipientEmail =
+      updated.created_by_email ||
+      (await query<{ email: string }>("SELECT email FROM users WHERE id = ?", [
+        updated.created_by,
+      ]))[0]?.email;
+
+    if (recipientEmail) {
+      sendTicketResolvedNotification({
+        id: updated.id,
+        title: updated.title,
+        description: updated.description,
+        priority: updated.priority,
+        categoryName: updated.category_name,
+        creatorName: updated.created_by_name || "Employee",
+        creatorEmail: recipientEmail,
+        resolvedByName: user.name,
+        resolvedByEmail: user.email,
+        status: data.status as "resolved" | "closed",
+        resolvedAt: updated.resolved_at || new Date().toLocaleString(),
+      }).catch((err) => {
+        console.error("[Email] Error dispatching ticket resolved notification:", err);
+      });
+    }
   }
 
   return NextResponse.json({ ticket: updated });

@@ -117,14 +117,18 @@ export default function NewTicketPage() {
               <MenuItem value="urgent">Urgent</MenuItem>
             </TextField>
 
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Stack direction="row" spacing={2} justifyContent="flex-end" alignItems="center">
               <Button onClick={() => router.back()} disabled={submitting}>
                 Cancel
               </Button>
               <Button type="submit" variant="contained" disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit Ticket"}
+                {submitting ? "Submitting & Notifying..." : "Submit Ticket"}
               </Button>
             </Stack>
+
+            <Alert severity="info" variant="outlined" sx={{ mt: 1, py: 0.5, fontSize: "0.85rem" }}>
+              Submitting will automatically send an email alert to the IT Admin team and email you a confirmation with ticket tracking details.
+            </Alert>
           </Stack>
         </Box>
       </Paper>

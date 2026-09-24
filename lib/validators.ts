@@ -28,6 +28,7 @@ export const updateTicketSchema = z
     assigned_to: z.number().int().positive().nullable().optional(),
     title: z.string().trim().min(3).max(200).optional(),
     description: z.string().trim().min(10).optional(),
+    internal_notes: z.string().trim().max(10000).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",

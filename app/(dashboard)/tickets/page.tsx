@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   Box,
@@ -13,9 +14,12 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
+  Tooltip,
+  Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
 import type { Ticket, Category } from "@/types";
@@ -38,6 +42,9 @@ const PRIORITY_OPTIONS = [
 
 export default function TicketsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "agent" || session?.user?.role === "admin";
+
   const [rows, setRows] = useState<Ticket[]>([]);
   const [rowCount, setRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -112,7 +119,35 @@ export default function TicketsPage() {
 
   const columns: GridColDef<Ticket>[] = [
     { field: "id", headerName: "ID", width: 70 },
-    { field: "title", headerName: "Title", flex: 1, minWidth: 220 },
+    {
+      field: "title",
+      headerName: "Title",
+      flex: 1,
+      minWidth: 240,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%", overflow: "hidden" }}>
+          <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+            {params.value}
+          </Typography>
+          {isStaff && Boolean(params.row.internal_notes) && (
+            <Tooltip
+              title={`Internal Staff Note: ${String(params.row.internal_notes).slice(0, 100)}${
+                String(params.row.internal_notes).length > 100 ? "..." : ""
+              }`}
+            >
+              <Chip
+                size="small"
+                icon={<LockOutlinedIcon sx={{ fontSize: "13px !important" }} />}
+                label="Note"
+                color="warning"
+                variant="outlined"
+                sx={{ height: 20, fontSize: "0.68rem", fontWeight: 600, flexShrink: 0 }}
+              />
+            </Tooltip>
+          )}
+        </Box>
+      ),
+    },
     {
       field: "status",
       headerName: "Status",

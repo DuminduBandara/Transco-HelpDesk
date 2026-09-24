@@ -29,6 +29,7 @@ interface MockTicket {
   id: number;
   title: string;
   description: string;
+  internal_notes?: string | null;
   status: TicketStatus;
   priority: TicketPriority;
   category_id: number | null;
@@ -49,18 +50,16 @@ interface MockComment {
 
 export interface MockNotification {
   id: number;
-  ticket_id: number;
-  ticket_title: string;
-  recipient_id: number;
+  ticket_id: number | null;
   recipient_email: string;
   recipient_name: string;
-  sender_name: string;
-  type: "status_update" | "new_comment";
   subject: string;
-  preview: string;
-  html_body: string;
-  sent_at: string;
-  is_read: number;
+  type: string;
+  status: "delivered" | "simulated" | "failed";
+  body_text?: string;
+  body_html?: string;
+  error_message?: string | null;
+  created_at: string;
 }
 
 interface MockDbState {
@@ -127,6 +126,7 @@ function getInitialMockState(): MockDbState {
         id: 1,
         title: "Dual monitor setup not detected after docking station update",
         description: "Secondary display shows 'No Signal' after firmware update on Dell Thunderbolt dock. Tested with HDMI and DisplayPort cables.",
+        internal_notes: "Checked Dell dock firmware release notes; version 1.4.1 broke DisplayPort alternate mode on several Latitude laptops. Reverting or applying patch 1.4.3 is recommended.",
         status: "open",
         priority: "high",
         category_id: 1,
@@ -140,6 +140,7 @@ function getInitialMockState(): MockDbState {
         id: 2,
         title: "Request access to Production Logs dashboard",
         description: "Need read-only access to Datadog production log viewer for customer support investigations.",
+        internal_notes: "Waiting on security review ticket #SEC-492 before adding employee to Datadog read-only group.",
         status: "in_progress",
         priority: "medium",
         category_id: 4,
@@ -153,6 +154,7 @@ function getInitialMockState(): MockDbState {
         id: 3,
         title: "VPN client disconnection every 30 minutes",
         description: "Cisco AnyConnect disconnects intermittently on home Wi-Fi with error code 412.",
+        internal_notes: "Home Wi-Fi router MTU was set to 1500 causing packet fragmentation; reduced to 1400 on the AnyConnect client XML profile.",
         status: "resolved",
         priority: "urgent",
         category_id: 3,
@@ -166,6 +168,7 @@ function getInitialMockState(): MockDbState {
         id: 4,
         title: "Printer spooler service hanging on Accounting floor",
         description: "Network printer HP LaserJet 400 is queueing jobs but failing to output pages.",
+        internal_notes: "Cleared stuck print job owned by payroll batch and rebooted local print server service.",
         status: "resolved",
         priority: "medium",
         category_id: 1,
@@ -179,6 +182,7 @@ function getInitialMockState(): MockDbState {
         id: 5,
         title: "Upgrade RAM on development workstation #14",
         description: "Installed additional 32GB DDR5 memory modules for local virtualization workloads.",
+        internal_notes: "Crucial CT2K16G48C40U5 kit verified with MemTest86 for 2 passes.",
         status: "closed",
         priority: "low",
         category_id: 1,
@@ -205,27 +209,51 @@ function getInitialMockState(): MockDbState {
         created_at: "2026-09-22 10:00:00",
       },
     ],
-    notifications: [
-      {
-        id: 1,
-        ticket_id: 2,
-        ticket_title: "Request for AWS Production Console access",
-        recipient_id: 3,
-        recipient_email: "employee@company.com",
-        recipient_name: "John Doe",
-        sender_name: "Sarah Support",
-        type: "new_comment",
-        subject: "[IT Helpdesk] New comment on Ticket #2: Request for AWS Production Console access",
-        preview: "Agent Sarah Support commented: \"I have requested approval from your team lead and will grant permissions once confirmed.\"",
-        html_body: "<p>Agent <strong>Sarah Support</strong> commented on your ticket.</p>",
-        sent_at: "2026-09-23 13:40:05",
-        is_read: 0,
-      },
-    ],
     nextUserId: 4,
     nextTicketId: 6,
     nextCommentId: 3,
-    nextNotificationId: 2,
+    nextNotificationId: 4,
+    notifications: [
+      {
+        id: 1,
+        ticket_id: 1,
+        recipient_email: "admin@company.com",
+        recipient_name: "System Admin",
+        subject: "[IT Help Desk] New Ticket #1: Dual monitor setup not detected after docking station update",
+        type: "ticket_created_admin",
+        status: "delivered",
+        body_text: "New ticket submitted by John Employee (Operations). Priority: High. Category: Hardware.",
+        body_html: "<p>New ticket submitted by John Employee (Operations). Priority: High. Category: Hardware.</p>",
+        error_message: null,
+        created_at: "2026-09-20 14:30:00",
+      },
+      {
+        id: 2,
+        ticket_id: 1,
+        recipient_email: "employee@company.com",
+        recipient_name: "John Employee",
+        subject: "[IT Help Desk] Ticket #1 Received: Dual monitor setup not detected after docking station update",
+        type: "ticket_created_employee",
+        status: "delivered",
+        body_text: "Your ticket has been received and added to our IT support queue.",
+        body_html: "<p>Your ticket has been received and added to our IT support queue.</p>",
+        error_message: null,
+        created_at: "2026-09-20 14:30:05",
+      },
+      {
+        id: 3,
+        ticket_id: 4,
+        recipient_email: "employee@company.com",
+        recipient_name: "John Employee",
+        subject: "[IT Help Desk] Issue Resolved: Ticket #4 - Printer spooler service hanging on Accounting floor",
+        type: "ticket_resolved",
+        status: "delivered",
+        body_text: "Great news! Your ticket #4 has been marked as resolved by Sarah Agent.",
+        body_html: "<p>Great news! Your ticket #4 has been marked as resolved by Sarah Agent.</p>",
+        error_message: null,
+        created_at: "2026-08-16 15:30:00",
+      },
+    ],
   };
 }
 
@@ -323,6 +351,7 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
         ...t,
         category_name: cat ? cat.name : null,
         created_by_name: cu ? cu.name : "Unknown",
+        created_by_email: cu ? cu.email : "",
         assigned_to_name: au ? au.name : null,
       },
     ] as unknown as T[];
@@ -475,21 +504,30 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   if (norm.includes("FROM users WHERE id = ?")) {
     const id = Number(params[0]);
     const u = mockDb.users.find((user) => user.id === id);
-    return u ? ([{ id: u.id, name: u.name, email: u.email, role: u.role }] as unknown as T[]) : ([] as T[]);
+    return u ? ([{ id: u.id }] as unknown as T[]) : ([] as T[]);
   }
 
-  // 15. Notifications lookup: SELECT * FROM notifications WHERE recipient_id = ?
-  if (norm.includes("FROM notifications")) {
-    let list = [...(mockDb.notifications ?? [])];
-    if (norm.includes("WHERE recipient_id = ?")) {
-      const recipientId = Number(params[0]);
-      list = list.filter((n) => n.recipient_id === recipientId);
+  // 15. Admins list: SELECT id, name, email FROM users WHERE role = 'admin' AND is_active = 1
+  if (norm.includes("WHERE role = 'admin' AND is_active = 1")) {
+    const admins = mockDb.users
+      .filter((u) => u.role === "admin" && u.is_active)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((u) => ({ id: u.id, name: u.name, email: u.email }));
+    return admins as unknown as T[];
+  }
+
+  // 16. Email notifications: SELECT ... FROM email_notifications
+  if (norm.includes("FROM email_notifications")) {
+    let list = [...mockDb.notifications];
+    if (norm.includes("ticket_id = ?")) {
+      const tid = Number(params[0]);
+      list = list.filter((n) => n.ticket_id === tid);
+    } else if (norm.includes("recipient_email = ?")) {
+      const email = String(params[0]).toLowerCase();
+      list = list.filter((n) => n.recipient_email.toLowerCase() === email);
     }
-    list.sort((a, b) => b.sent_at.localeCompare(a.sent_at));
-    return list.map((n) => ({
-      ...n,
-      read: Boolean(n.is_read),
-    })) as unknown as T[];
+    list.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return list as unknown as T[];
   }
 
   console.warn("[Mock DB] Unmatched query:", sql, params);
@@ -521,6 +559,7 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       category_id: category_id ?? null,
       created_by,
       assigned_to: null,
+      internal_notes: null,
       status: "open",
       created_at: now,
       updated_at: now,
@@ -574,6 +613,9 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       } else if (clause.startsWith("assigned_to = ?")) {
         const val = params[pIdx++] as number | null;
         ticket.assigned_to = val;
+      } else if (clause.startsWith("internal_notes = ?")) {
+        const val = params[pIdx++] as string | null;
+        ticket.internal_notes = val ?? null;
       } else if (clause.startsWith("resolved_at = NOW()")) {
         ticket.resolved_at = now;
       } else if (clause.startsWith("resolved_at = NULL")) {
@@ -661,62 +703,44 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
     return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
   }
 
-  // 8. Insert notification
-  if (norm.startsWith("INSERT INTO notifications")) {
+  // 8. Insert email notification
+  if (norm.startsWith("INSERT INTO email_notifications")) {
     const [
       ticket_id,
-      ticket_title,
-      recipient_id,
       recipient_email,
       recipient_name,
-      sender_name,
-      type,
       subject,
-      preview,
-      html_body,
+      type,
+      status,
+      body_text,
+      body_html,
+      error_message,
     ] = params as [
-      number,
-      string,
-      number,
+      number | null,
       string,
       string,
       string,
-      "status_update" | "new_comment",
       string,
-      string,
-      string
+      "delivered" | "simulated" | "failed",
+      string | undefined,
+      string | undefined,
+      string | null | undefined
     ];
-    if (!mockDb.notifications) mockDb.notifications = [];
     const id = mockDb.nextNotificationId++;
     mockDb.notifications.unshift({
       id,
-      ticket_id,
-      ticket_title,
-      recipient_id,
-      recipient_email,
-      recipient_name,
-      sender_name,
-      type,
-      subject,
-      preview,
-      html_body,
-      sent_at: now,
-      is_read: 0,
+      ticket_id: ticket_id ?? null,
+      recipient_email: String(recipient_email),
+      recipient_name: String(recipient_name),
+      subject: String(subject),
+      type: String(type),
+      status: status || "delivered",
+      body_text: body_text ? String(body_text) : undefined,
+      body_html: body_html ? String(body_html) : undefined,
+      error_message: error_message ? String(error_message) : null,
+      created_at: now,
     });
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
-  }
-
-  // 9. Mark notifications as read: UPDATE notifications SET is_read = 1 WHERE recipient_id = ?
-  if (norm.startsWith("UPDATE notifications SET is_read = 1")) {
-    if (norm.includes("WHERE recipient_id = ?")) {
-      const recipientId = Number(params[0]);
-      if (mockDb.notifications) {
-        mockDb.notifications.forEach((n) => {
-          if (n.recipient_id === recipientId) n.is_read = 1;
-        });
-      }
-      return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
-    }
   }
 
   console.warn("[Mock DB] Unmatched execute:", sql, params);

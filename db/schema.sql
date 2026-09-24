@@ -43,6 +43,7 @@ CREATE TABLE tickets (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title        VARCHAR(200)  NOT NULL,
   description  TEXT          NOT NULL,
+  internal_notes TEXT        NULL,
   status       ENUM('open', 'in_progress', 'resolved', 'closed')
                              NOT NULL DEFAULT 'open',
   priority     ENUM('low', 'medium', 'high', 'urgent')
@@ -84,6 +85,26 @@ CREATE TABLE ticket_comments (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 
   INDEX idx_ticket_id (ticket_id)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Email Notifications Log
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS email_notifications (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ticket_id       INT UNSIGNED NULL,
+  recipient_email VARCHAR(190) NOT NULL,
+  recipient_name  VARCHAR(120) NOT NULL,
+  subject         VARCHAR(255) NOT NULL,
+  type            VARCHAR(50)  NOT NULL,
+  status          VARCHAR(30)  NOT NULL DEFAULT 'delivered',
+  body_text       TEXT         NULL,
+  body_html       TEXT         NULL,
+  error_message   TEXT         NULL,
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_ticket_id (ticket_id),
+  INDEX idx_recipient (recipient_email)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------

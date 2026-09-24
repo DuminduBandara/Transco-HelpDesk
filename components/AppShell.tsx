@@ -13,10 +13,14 @@ import {
   Container,
   Chip,
   CircularProgress,
+  IconButton,
+  Tooltip,
+  Badge,
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AddIcon from "@mui/icons-material/Add";
-import NotificationBell from "@/components/NotificationBell";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import NotificationCenterModal from "@/components/NotificationCenterModal";
 
 const ROLE_LABEL: Record<string, string> = {
   employee: "Employee",
@@ -28,6 +32,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -86,12 +91,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
             color="inherit"
             variant="outlined"
             startIcon={<AddIcon />}
-            sx={{ mr: 2, borderColor: "rgba(255,255,255,0.5)" }}
+            sx={{ mr: 1, borderColor: "rgba(255,255,255,0.5)" }}
           >
             New Ticket
           </Button>
 
-          <NotificationBell />
+          <Tooltip title="Email Notifications & Outbox">
+            <IconButton
+              color="inherit"
+              onClick={() => setNotificationsOpen(true)}
+              sx={{ mr: 1 }}
+            >
+              <Badge color="secondary" variant="dot">
+                <MailOutlineIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
 
           {role && (
             <Chip
@@ -114,6 +129,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {children}
       </Container>
+
+      <NotificationCenterModal
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        isAdmin={role === "admin"}
+      />
     </Box>
   );
 }
