@@ -190,7 +190,7 @@ export default function DashboardPage() {
           </Typography>
         </Box>
         <Button component={Link} href="/tickets/new" variant="contained">
-          Submit a Ticket
+          New Ticket
         </Button>
       </Box>
 
@@ -199,7 +199,7 @@ export default function DashboardPage() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<ConfirmationNumberIcon />}
-            label="Open"
+            label="New"
             value={getCount("open")}
             color="#1565c0"
           />
@@ -231,14 +231,14 @@ export default function DashboardPage() {
           ) : (
             <StatCard
               icon={<PersonOffIcon />}
-              label="Unassigned (open)"
+              label="Unassigned (New)"
               value={unassigned}
               color="#c62828"
             />
           )}
         </Grid>
 
-        {role === "admin" && totalUsers !== undefined && (
+        {/* {role === "admin" && totalUsers !== undefined && (
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               icon={<ConfirmationNumberIcon />}
@@ -247,7 +247,7 @@ export default function DashboardPage() {
               color="#546e7a"
             />
           </Grid>
-        )}
+        )} */}
       </Grid>
 
       {/* Admin Monthly Report Download Card */}
