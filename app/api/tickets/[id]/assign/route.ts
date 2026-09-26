@@ -17,8 +17,8 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const ticketId = Number(params.id);
-  if (!Number.isInteger(ticketId)) {
+  const ticketId = params.id.trim();
+  if (!ticketId || ticketId.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 

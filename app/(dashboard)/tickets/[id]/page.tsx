@@ -88,12 +88,41 @@ export default function TicketDetailPage() {
   }
 
   async function claimTicket() {
+    // Client-side authorization check before sending API request
+    if (!session?.user) {
+      setError("You must be logged in to assign tickets.");
+      return;
+    }
+    if (!isStaff) {
+      setError("Unauthorized: Only IT staff (agents or administrators) are permitted to assign or claim tickets.");
+      return;
+    }
+    if (!ticket) {
+      setError("Ticket data is unavailable.");
+      return;
+    }
+    if (ticket.assigned_to) {
+      setError("This ticket is already assigned to a team member.");
+      return;
+    }
+
     setSaving(true);
-    const res = await fetch(`/api/tickets/${params.id}/assign`, {
-      method: "POST",
-    });
-    setSaving(false);
-    if (res.ok) load();
+    setError(null);
+    try {
+      const res = await fetch(`/api/tickets/${params.id}/assign`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to assign ticket.");
+      } else {
+        load();
+      }
+    } catch {
+      setError("An unexpected error occurred while assigning ticket.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function submitComment(e: React.FormEvent) {

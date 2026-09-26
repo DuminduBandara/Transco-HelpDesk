@@ -124,8 +124,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id)) {
+  const id = params.id.trim();
+  if (!id || id.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 
