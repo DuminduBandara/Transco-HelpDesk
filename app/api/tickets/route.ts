@@ -36,8 +36,17 @@ export async function GET(req: NextRequest) {
   }
 
   if (search) {
-    where.push("(t.title LIKE ? OR t.description LIKE ?)");
-    params.push(`%${search}%`, `%${search}%`);
+    const cleanSearch = search.trim();
+    const idMatch = cleanSearch.replace(/^#/, "");
+    const isNumeric = /^\d+$/.test(idMatch);
+
+    if (isNumeric) {
+      where.push("(t.id = ? OR t.title LIKE ? OR t.description LIKE ?)");
+      params.push(parseInt(idMatch, 10), `%${cleanSearch}%`, `%${cleanSearch}%`);
+    } else {
+      where.push("(t.title LIKE ? OR t.description LIKE ?)");
+      params.push(`%${cleanSearch}%`, `%${cleanSearch}%`);
+    }
   }
 
   if (status) {

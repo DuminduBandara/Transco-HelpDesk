@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import type { Role, TicketPriority, TicketStatus } from "@/types";
+import type { Role, TicketPriority, TicketStatus, ActivityType } from "@/types";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -47,11 +47,26 @@ interface MockComment {
   created_at: string;
 }
 
+interface MockActivity {
+  id: string | number;
+  type: ActivityType;
+  ticket_id: number;
+  ticket_title: string;
+  ticket_status?: TicketStatus;
+  ticket_priority?: TicketPriority;
+  user_id: number;
+  user_name: string;
+  user_role?: Role;
+  details: string;
+  created_at: string;
+}
+
 interface MockDbState {
   users: MockUser[];
   categories: MockCategory[];
   tickets: MockTicket[];
   comments: MockComment[];
+  activities: MockActivity[];
   nextUserId: number;
   nextTicketId: number;
   nextCommentId: number;
@@ -185,6 +200,86 @@ function getInitialMockState(): MockDbState {
         user_id: 2,
         comment: "MTU size adjustment in adapter settings resolved the packet loss issue.",
         created_at: "2026-09-22 10:00:00",
+      },
+    ],
+    activities: [
+      {
+        id: "act-1",
+        type: "status_change",
+        ticket_id: 3,
+        ticket_title: "VPN client disconnection every 30 minutes",
+        ticket_status: "resolved",
+        ticket_priority: "urgent",
+        user_id: 2,
+        user_name: "Sarah Agent",
+        user_role: "agent",
+        details: "Changed status to Resolved",
+        created_at: "2026-09-22 10:00:00",
+      },
+      {
+        id: "act-2",
+        type: "comment",
+        ticket_id: 3,
+        ticket_title: "VPN client disconnection every 30 minutes",
+        ticket_status: "resolved",
+        ticket_priority: "urgent",
+        user_id: 2,
+        user_name: "Sarah Agent",
+        user_role: "agent",
+        details: "MTU size adjustment in adapter settings resolved the packet loss issue.",
+        created_at: "2026-09-22 10:00:00",
+      },
+      {
+        id: "act-3",
+        type: "comment",
+        ticket_id: 2,
+        ticket_title: "Request access to Production Logs dashboard",
+        ticket_status: "in_progress",
+        ticket_priority: "medium",
+        user_id: 2,
+        user_name: "Sarah Agent",
+        user_role: "agent",
+        details: "I have requested approval from your team lead and will grant permissions once confirmed.",
+        created_at: "2026-09-23 13:40:00",
+      },
+      {
+        id: "act-4",
+        type: "ticket_assigned",
+        ticket_id: 2,
+        ticket_title: "Request access to Production Logs dashboard",
+        ticket_status: "in_progress",
+        ticket_priority: "medium",
+        user_id: 2,
+        user_name: "Sarah Agent",
+        user_role: "agent",
+        details: "Assigned ticket to Sarah Agent and set status to In Progress",
+        created_at: "2026-09-23 11:30:00",
+      },
+      {
+        id: "act-5",
+        type: "ticket_created",
+        ticket_id: 2,
+        ticket_title: "Request access to Production Logs dashboard",
+        ticket_status: "in_progress",
+        ticket_priority: "medium",
+        user_id: 3,
+        user_name: "John Employee",
+        user_role: "employee",
+        details: "Created ticket with medium priority",
+        created_at: "2026-09-23 11:15:00",
+      },
+      {
+        id: "act-6",
+        type: "ticket_created",
+        ticket_id: 1,
+        ticket_title: "Dual monitor setup not detected after docking station update",
+        ticket_status: "open",
+        ticket_priority: "high",
+        user_id: 3,
+        user_name: "John Employee",
+        user_role: "employee",
+        details: "Created ticket with high priority",
+        created_at: "2026-09-22 08:30:00",
       },
     ],
     nextUserId: 4,
@@ -325,12 +420,17 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
       const creatorId = Number(params[paramIdx++]);
       filtered = filtered.filter((t) => t.created_by === creatorId);
     }
-    if (norm.includes("(t.title LIKE ? OR t.description LIKE ?)")) {
+    if (norm.includes("(t.id = ? OR t.title LIKE ? OR t.description LIKE ?)") || norm.includes("(t.title LIKE ? OR t.description LIKE ?)")) {
+      let targetId: number | null = null;
+      if (norm.includes("t.id = ?")) {
+        targetId = Number(params[paramIdx++]);
+      }
       const searchPattern = String(params[paramIdx++]);
       paramIdx++; // skip duplicate %search% param for description
       const searchTerm = searchPattern.replace(/^%|%$/g, "").toLowerCase();
       filtered = filtered.filter(
         (t) =>
+          (targetId !== null && t.id === targetId) ||
           t.title.toLowerCase().includes(searchTerm) ||
           t.description.toLowerCase().includes(searchTerm)
       );
@@ -442,6 +542,25 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
     return u ? ([{ id: u.id }] as unknown as T[]) : ([] as T[]);
   }
 
+  // 15. Activity feed query
+  if (norm.includes("combined_activity") || norm.includes("FROM activities")) {
+    let list = [...mockDb.activities];
+    if (norm.includes("t.created_by = ?")) {
+      const empId = Number(params[0]);
+      if (Number.isInteger(empId) && empId > 0) {
+        const empTicketIds = new Set(
+          mockDb.tickets.filter((t) => t.created_by === empId).map((t) => t.id)
+        );
+        list = list.filter(
+          (a) => empTicketIds.has(a.ticket_id) || a.user_id === empId
+        );
+      }
+    }
+    list.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const limit = Number(params[params.length - 1]) || 15;
+    return list.slice(0, limit) as unknown as T[];
+  }
+
   console.warn("[Mock DB] Unmatched query:", sql, params);
   return [] as T[];
 }
@@ -476,6 +595,20 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       updated_at: now,
       resolved_at: null,
     });
+    const cu = mockDb.users.find((u) => u.id === created_by);
+    mockDb.activities.unshift({
+      id: `act-${Date.now()}`,
+      type: "ticket_created",
+      ticket_id: id,
+      ticket_title: title,
+      ticket_status: "open",
+      ticket_priority: priority,
+      user_id: created_by,
+      user_name: cu ? cu.name : "Employee",
+      user_role: cu ? cu.role : "employee",
+      details: `Created new ticket with ${priority} priority`,
+      created_at: now,
+    });
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
   }
 
@@ -489,6 +622,20 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
         ticket.status = "in_progress";
       }
       ticket.updated_at = now;
+      const au = mockDb.users.find((u) => u.id === userId);
+      mockDb.activities.unshift({
+        id: `act-${Date.now()}`,
+        type: "ticket_assigned",
+        ticket_id: ticket.id,
+        ticket_title: ticket.title,
+        ticket_status: ticket.status,
+        ticket_priority: ticket.priority,
+        user_id: userId,
+        user_name: au ? au.name : "Agent",
+        user_role: au ? au.role : "agent",
+        details: `Ticket assigned to ${au ? au.name : "Agent"}`,
+        created_at: now,
+      });
       return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
     }
     return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
@@ -499,6 +646,8 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
     const ticketId = Number(params[params.length - 1]);
     const ticket = mockDb.tickets.find((t) => t.id === ticketId);
     if (!ticket) return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
+
+    const oldStatus = ticket.status;
 
     // Parse clauses
     const setPart = norm.substring("UPDATE tickets SET".length, norm.lastIndexOf("WHERE id = ?")).trim();
@@ -531,6 +680,26 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       }
     }
     ticket.updated_at = now;
+
+    if (ticket.status !== oldStatus) {
+      const u = mockDb.users.find(
+        (user) => user.id === (ticket.assigned_to ?? ticket.created_by)
+      );
+      mockDb.activities.unshift({
+        id: `act-${Date.now()}`,
+        type: "status_change",
+        ticket_id: ticket.id,
+        ticket_title: ticket.title,
+        ticket_status: ticket.status,
+        ticket_priority: ticket.priority,
+        user_id: u ? u.id : 1,
+        user_name: u ? u.name : "Staff",
+        user_role: u ? u.role : "agent",
+        details: `Ticket status updated to ${ticket.status.replace("_", " ")}`,
+        created_at: now,
+      });
+    }
+
     return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
   }
 
@@ -555,6 +724,21 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       ticket_id: ticketId,
       user_id: userId,
       comment,
+      created_at: now,
+    });
+    const t = mockDb.tickets.find((item) => item.id === ticketId);
+    const u = mockDb.users.find((user) => user.id === userId);
+    mockDb.activities.unshift({
+      id: `act-${Date.now()}`,
+      type: "comment",
+      ticket_id: ticketId,
+      ticket_title: t ? t.title : `Ticket #${ticketId}`,
+      ticket_status: t ? t.status : undefined,
+      ticket_priority: t ? t.priority : undefined,
+      user_id: userId,
+      user_name: u ? u.name : "User",
+      user_role: u ? u.role : "employee",
+      details: comment.length > 100 ? `${comment.substring(0, 100)}...` : comment,
       created_at: now,
     });
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;

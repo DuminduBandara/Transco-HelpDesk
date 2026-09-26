@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AddIcon from "@mui/icons-material/Add";
+import SessionTimeoutHandler from "@/components/SessionTimeoutHandler";
+import GlobalSearchBar from "@/components/GlobalSearchBar";
 
 const ROLE_LABEL: Record<string, string> = {
   employee: "Employee",
@@ -67,10 +69,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
             IT Help Desk
           </Typography>
 
-          <Box sx={{ display: "flex", gap: 0.5, flexGrow: 1 }}>
+          <Box sx={{ display: "flex", gap: 0.5 }}>
             {navLink("/dashboard", "Dashboard")}
             {navLink("/tickets", "Tickets")}
             {role === "admin" && navLink("/admin/users", "Users")}
+          </Box>
+
+          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", px: { xs: 1, md: 2 } }}>
+            <GlobalSearchBar />
           </Box>
 
           <Button
@@ -105,6 +111,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {children}
       </Container>
+      <SessionTimeoutHandler />
     </Box>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   Box,
@@ -12,6 +12,7 @@ import {
   Stack,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -35,15 +36,18 @@ const PRIORITY_OPTIONS = [
   { value: "urgent", label: "Urgent" },
 ];
 
-export default function TicketsPage() {
+function TicketsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get("search") || "";
+
   const [rows, setRows] = useState<Ticket[]>([]);
   const [rowCount, setRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(urlSearch);
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -51,6 +55,14 @@ export default function TicketsPage() {
     page: 0,
     pageSize: 25,
   });
+
+  // Keep in sync when URL search parameter changes (e.g. from Global Search Bar in navbar)
+  useEffect(() => {
+    const q = searchParams.get("search") || "";
+    setSearchInput(q);
+    setDebouncedSearch(q);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  }, [searchParams]);
 
   // Debounce search input changes
   useEffect(() => {
@@ -253,3 +265,18 @@ export default function TicketsPage() {
     </Box>
   );
 }
+
+export default function TicketsPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ py: 8, display: "flex", justifyContent: "center" }}>
+          <CircularProgress />
+        </Box>
+      }
+    >
+      <TicketsContent />
+    </Suspense>
+  );
+}
+

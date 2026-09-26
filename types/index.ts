@@ -45,3 +45,23 @@ export interface Category {
   id: number;
   name: string;
 }
+
+export type ActivityType =
+  | "ticket_created"
+  | "status_change"
+  | "comment"
+  | "ticket_assigned";
+
+export interface ActivityItem {
+  id: string | number;
+  type: ActivityType;
+  ticket_id: number;
+  ticket_title: string;
+  ticket_status?: TicketStatus;
+  ticket_priority?: TicketPriority;
+  user_id: number;
+  user_name: string;
+  user_role?: Role;
+  details: string;
+  created_at: string;
+}

@@ -19,11 +19,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [timeoutNotice, setTimeoutNotice] = useState(false);
   const [loading, setLoading] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     emailInputRef.current?.focus();
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("reason") === "timeout") {
+        setTimeoutNotice(true);
+      }
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,6 +75,12 @@ export default function LoginPage() {
             Sign in to manage support tickets
           </Typography>
         </Stack>
+
+        {timeoutNotice && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            You were signed out due to 5 minutes of inactivity. Please sign in again.
+          </Alert>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
