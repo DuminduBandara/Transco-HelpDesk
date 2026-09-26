@@ -9,8 +9,8 @@ async function getTicketOr404(id: string) {
     `SELECT
        t.id, t.title, t.description, t.status, t.priority,
        t.category_id, c.name AS category_name,
-       t.created_by, cu.name AS created_by_name,
-       t.assigned_to, au.name AS assigned_to_name,
+       t.created_by, cu.name AS created_by_name, cu.role AS created_by_role, cu.mobile_number AS created_by_mobile,
+       t.assigned_to, au.name AS assigned_to_name, au.role AS assigned_to_role, au.mobile_number AS assigned_to_mobile,
        t.created_at, t.updated_at, t.resolved_at
      FROM tickets t
      LEFT JOIN categories c ON c.id = t.category_id
@@ -46,6 +46,16 @@ export async function GET(
   // Employees may only view their own tickets.
   if (user.role === "employee" && ticket.created_by !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Strict privacy rule: Do not reveal admin mobile numbers to non-admins
+  if (user.role !== "admin") {
+    if (ticket.created_by_role === "admin" && ticket.created_by !== user.id) {
+      ticket.created_by_mobile = null;
+    }
+    if (ticket.assigned_to_role === "admin" && ticket.assigned_to !== user.id) {
+      ticket.assigned_to_mobile = null;
+    }
   }
 
   return NextResponse.json({ ticket });

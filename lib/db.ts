@@ -13,6 +13,7 @@ interface MockUser {
   id: number;
   name: string;
   email: string;
+  mobile_number: string | null;
   password_hash: string;
   role: Role;
   department: string | null;
@@ -79,6 +80,7 @@ function getInitialMockState(): MockDbState {
         id: 1,
         name: "System Admin",
         email: "admin@company.com",
+        mobile_number: "+1 (555) 234-5678",
         // Password: Admin@123
         password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "admin",
@@ -91,6 +93,7 @@ function getInitialMockState(): MockDbState {
         id: 2,
         name: "Sarah Agent",
         email: "agent@company.com",
+        mobile_number: "+1 (555) 345-6789",
         // Password: Admin@123
         password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "agent",
@@ -103,6 +106,7 @@ function getInitialMockState(): MockDbState {
         id: 3,
         name: "John Employee",
         email: "employee@company.com",
+        mobile_number: "+1 (555) 456-7890",
         // Password: Admin@123
         password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "employee",
@@ -443,7 +447,11 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
         ...t,
         category_name: cat ? cat.name : null,
         created_by_name: cu ? cu.name : "Unknown",
+        created_by_role: cu ? cu.role : "employee",
+        created_by_mobile: cu ? cu.mobile_number : null,
         assigned_to_name: au ? au.name : null,
+        assigned_to_role: au ? au.role : null,
+        assigned_to_mobile: au ? au.mobile_number : null,
       },
     ] as unknown as T[];
   }
@@ -575,7 +583,7 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   }
 
   // 12. Users list for admin
-  if (norm.startsWith("SELECT id, name, email, role, department, is_active, created_at FROM users")) {
+  if (norm.startsWith("SELECT id, name, email") && norm.includes("FROM users")) {
     let list = [...mockDb.users];
     if (norm.includes("WHERE role = ?")) {
       const roleFilter = String(params[0]);
@@ -586,6 +594,7 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
       id: u.id,
       name: u.name,
       email: u.email,
+      mobile_number: u.mobile_number,
       role: u.role,
       department: u.department,
       is_active: Boolean(u.is_active),
@@ -831,18 +840,37 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   // 6. Insert user
   if (norm.startsWith("INSERT INTO users")) {
-    const [name, email, password_hash, role, department] = params as [
-      string,
-      string,
-      string,
-      Role,
-      string | null
-    ];
+    let name: string,
+      email: string,
+      password_hash: string,
+      role: Role,
+      department: string | null = null,
+      mobile_number: string | null = null;
+
+    if (norm.includes("mobile_number")) {
+      [name, email, mobile_number, password_hash, role, department] = params as [
+        string,
+        string,
+        string | null,
+        string,
+        Role,
+        string | null
+      ];
+    } else {
+      [name, email, password_hash, role, department] = params as [
+        string,
+        string,
+        string,
+        Role,
+        string | null
+      ];
+    }
     const id = mockDb.nextUserId++;
     mockDb.users.push({
       id,
       name,
       email,
+      mobile_number: mobile_number ?? null,
       password_hash,
       role,
       department: department ?? null,
@@ -868,6 +896,9 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
         user.name = String(params[pIdx++]);
       } else if (clause.startsWith("email = ?")) {
         user.email = String(params[pIdx++]);
+      } else if (clause.startsWith("mobile_number = ?")) {
+        const val = params[pIdx++];
+        user.mobile_number = val ? String(val) : null;
       } else if (clause.startsWith("role = ?")) {
         user.role = params[pIdx++] as Role;
       } else if (clause.startsWith("department = ?")) {

@@ -8,6 +8,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  mobile_number?: string | null;
   role: Role;
   department: string | null;
   is_active: boolean;
@@ -24,8 +25,12 @@ export interface Ticket {
   category_name?: string | null;
   created_by: number;
   created_by_name?: string;
+  created_by_role?: Role;
+  created_by_mobile?: string | null;
   assigned_to: number | null;
   assigned_to_name?: string | null;
+  assigned_to_role?: Role;
+  assigned_to_mobile?: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;

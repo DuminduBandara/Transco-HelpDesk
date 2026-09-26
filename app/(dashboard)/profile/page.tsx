@@ -26,6 +26,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function ProfilePage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [department, setDepartment] = useState("");
   const [role, setRole] = useState("");
   const [createdAt, setCreatedAt] = useState("");
@@ -60,6 +62,7 @@ export default function ProfilePage() {
         if (data.user) {
           setName(data.user.name || "");
           setEmail(data.user.email || "");
+          setMobileNumber(data.user.mobile_number || "");
           setDepartment(data.user.department || "");
           setRole(data.user.role || "");
           setCreatedAt(data.user.created_at || "");
@@ -100,9 +103,10 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, string | null> = {
         name: name.trim(),
         department: department.trim(),
+        mobile_number: mobileNumber.trim() || null,
       };
       if (newPassword) {
         payload.current_password = currentPassword;
@@ -255,6 +259,28 @@ export default function ProfilePage() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
+                  label="Mobile Number"
+                  fullWidth
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  placeholder="e.g. +1 (555) 234-5678"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneAndroidIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  helperText={
+                    role === "admin"
+                      ? "🔒 Admin mobile numbers are strictly hidden from non-admin users"
+                      : "Used for urgent ticket notifications and IT support contact"
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
                   label="Email Address"
                   fullWidth
                   disabled
@@ -271,6 +297,16 @@ export default function ProfilePage() {
                   value={role.toUpperCase()}
                   size="small"
                   helperText="Access permissions determined by role"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Member Since"
+                  fullWidth
+                  disabled
+                  value={createdAt ? new Date(createdAt).toLocaleDateString() : "—"}
+                  size="small"
+                  helperText="Account registration date"
                 />
               </Grid>
             </Grid>

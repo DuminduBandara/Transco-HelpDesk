@@ -202,6 +202,11 @@ export default function TicketDetailPage() {
               Reported By
             </Typography>
             <Typography variant="body2">{ticket.created_by_name}</Typography>
+            {ticket.created_by_mobile && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                📞 {ticket.created_by_mobile}
+              </Typography>
+            )}
           </Grid>
           <Grid item xs={6} sm={3}>
             <Typography variant="caption" color="text.secondary">
@@ -210,6 +215,11 @@ export default function TicketDetailPage() {
             <Typography variant="body2">
               {ticket.assigned_to_name ?? "Unassigned"}
             </Typography>
+            {ticket.assigned_to_mobile && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                📞 {ticket.assigned_to_mobile}
+              </Typography>
+            )}
           </Grid>
           <Grid item xs={6} sm={3}>
             <Typography variant="caption" color="text.secondary">

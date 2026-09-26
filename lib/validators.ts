@@ -54,6 +54,7 @@ export const createCommentSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email(),
+  mobile_number: z.string().trim().max(30).nullable().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: roleEnum.default("employee"),
   department: z.string().trim().max(120).nullable().optional(),
@@ -63,6 +64,7 @@ export const updateUserSchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     email: z.string().trim().email("Invalid email address").optional(),
+    mobile_number: z.string().trim().max(30).nullable().optional(),
     role: roleEnum.optional(),
     department: z.string().trim().max(120).nullable().optional(),
     is_active: z.boolean().optional(),

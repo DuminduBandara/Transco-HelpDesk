@@ -66,6 +66,7 @@ export default function AdminUsersPage() {
   // User form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("employee");
   const [department, setDepartment] = useState("");
@@ -100,6 +101,7 @@ export default function AdminUsersPage() {
     setEditingUser(null);
     setName("");
     setEmail("");
+    setMobileNumber("");
     setPassword("");
     setRole("employee");
     setDepartment(departments[0] || "");
@@ -112,6 +114,7 @@ export default function AdminUsersPage() {
     setEditingUser(user);
     setName(user.name);
     setEmail(user.email);
+    setMobileNumber(user.mobile_number || "");
     setPassword("");
     setRole(user.role);
     setDepartment(user.department ?? "");
@@ -161,6 +164,7 @@ export default function AdminUsersPage() {
       const patch: Record<string, unknown> = {
         name: name.trim(),
         email: email.trim(),
+        mobile_number: mobileNumber.trim() || null,
         role,
         department: department || null,
         // Admin profiles are always active
@@ -179,6 +183,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
+          mobile_number: mobileNumber.trim() || null,
           password,
           role,
           department: department || null,
@@ -257,8 +262,38 @@ export default function AdminUsersPage() {
 
   const columns: GridColDef<User>[] = [
     { field: "id", headerName: "ID", width: 70, align: "center", headerAlign: "center" },
-    { field: "name", headerName: "Name", flex: 1, minWidth: 160 },
-    { field: "email", headerName: "Email", flex: 1, minWidth: 220 },
+    { field: "name", headerName: "Name", flex: 1, minWidth: 150 },
+    { field: "email", headerName: "Email", flex: 1, minWidth: 200 },
+    {
+      field: "mobile_number",
+      headerName: "Mobile",
+      width: 170,
+      renderCell: (params) => {
+        const phone = params.row.mobile_number;
+        const isAdmin = params.row.role === "admin";
+        if (!phone) {
+          return <Typography variant="caption" color="text.secondary">—</Typography>;
+        }
+        return (
+          <Stack direction="row" spacing={0.8} alignItems="center" sx={{ height: "100%" }}>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
+              {phone}
+            </Typography>
+            {isAdmin && (
+              <Tooltip title="Admin mobile number: Protected and hidden from non-admin users">
+                <Chip
+                  label="Private"
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  sx={{ height: 18, fontSize: "0.62rem", px: 0.2, fontWeight: 600 }}
+                />
+              </Tooltip>
+            )}
+          </Stack>
+        );
+      },
+    },
     {
       field: "role",
       headerName: "Role",
@@ -453,6 +488,21 @@ export default function AdminUsersPage() {
               required
               size="small"
               helperText={editingUser ? "Admin can change this user's email address" : undefined}
+            />
+
+            {/* Mobile Number Field */}
+            <TextField
+              label="Mobile Number"
+              value={mobileNumber}
+              onChange={(e) => setMobileNumber(e.target.value)}
+              placeholder="e.g. +1 (555) 019-2834"
+              fullWidth
+              size="small"
+              helperText={
+                role === "admin"
+                  ? "🔒 Admin mobile numbers are protected and hidden from non-admin users"
+                  : "User's contact mobile number"
+              }
             />
 
             <TextField

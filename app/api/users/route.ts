@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const params: unknown[] = [];
   let sql =
-    "SELECT id, name, email, role, department, is_active, created_at FROM users";
+    "SELECT id, name, email, mobile_number, role, department, is_active, created_at FROM users";
   if (roleFilter) {
     sql += " WHERE role = ?";
     params.push(roleFilter);
@@ -41,7 +41,17 @@ export async function GET(req: NextRequest) {
   sql += " ORDER BY created_at DESC";
 
   const rows = await query<User>(sql, params);
-  return NextResponse.json({ users: rows });
+
+  // Privacy rule: Admins can view all mobile numbers.
+  // Non-admins can NEVER view admin mobile numbers.
+  const sanitized = rows.map((u) => {
+    if (u.role === "admin" && user.role !== "admin" && u.id !== user.id) {
+      return { ...u, mobile_number: null };
+    }
+    return u;
+  });
+
+  return NextResponse.json({ users: sanitized });
 }
 
 // POST /api/users — admin only, creates a new user account.
@@ -62,7 +72,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { name, email, password, role, department } = parsed.data;
+  const { name, email, mobile_number, password, role, department } = parsed.data;
 
   const existing = await query("SELECT id FROM users WHERE email = ?", [
     email,
@@ -77,8 +87,8 @@ export async function POST(req: NextRequest) {
   const password_hash = await bcrypt.hash(password, 10);
 
   const result = await execute(
-    "INSERT INTO users (name, email, password_hash, role, department) VALUES (?, ?, ?, ?, ?)",
-    [name, email, password_hash, role, department ?? null]
+    "INSERT INTO users (name, email, mobile_number, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)",
+    [name, email, mobile_number?.trim() || null, password_hash, role, department ?? null]
   );
 
   return NextResponse.json({ id: result.insertId }, { status: 201 });

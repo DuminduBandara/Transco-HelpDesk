@@ -7,6 +7,7 @@ import { query, execute } from "@/lib/db";
 const profileUpdateSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
   department: z.string().trim().max(120).optional().nullable(),
+  mobile_number: z.string().trim().max(30).optional().nullable(),
   current_password: z.string().optional(),
   new_password: z.string().min(6, "New password must be at least 6 characters").optional(),
 });
@@ -22,11 +23,12 @@ export async function GET() {
     id: number;
     name: string;
     email: string;
+    mobile_number: string | null;
     role: string;
     department: string | null;
     created_at: string;
   }>(
-    "SELECT id, name, email, role, department, created_at FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, name, email, mobile_number, role, department, created_at FROM users WHERE id = ? LIMIT 1",
     [sessionUser.id]
   );
 
@@ -38,7 +40,7 @@ export async function GET() {
   return NextResponse.json({ user });
 }
 
-// PATCH /api/profile — update profile (name, department, password)
+// PATCH /api/profile — update profile (name, department, mobile_number, password)
 export async function PATCH(req: NextRequest) {
   const sessionUser = await getCurrentUser();
   if (!sessionUser) {
@@ -54,7 +56,7 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const { name, department, current_password, new_password } = parsed.data;
+  const { name, department, mobile_number, current_password, new_password } = parsed.data;
 
   // Retrieve current user row including password_hash
   const userRows = await query<{
@@ -67,8 +69,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const setClauses: string[] = ["name = ?", "department = ?"];
-  const values: unknown[] = [name, department ?? null];
+  const setClauses: string[] = ["name = ?", "department = ?", "mobile_number = ?"];
+  const values: unknown[] = [
+    name,
+    department ?? null,
+    mobile_number !== undefined ? (mobile_number ? mobile_number.trim() : null) : null,
+  ];
 
   // If user is trying to change password
   if (new_password) {
@@ -106,6 +112,7 @@ export async function PATCH(req: NextRequest) {
       id: sessionUser.id,
       name,
       department: department ?? null,
+      mobile_number: mobile_number ?? null,
     },
   });
 }
