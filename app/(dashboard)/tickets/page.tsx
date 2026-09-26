@@ -120,11 +120,15 @@ function TicketsContent() {
     {
       field: "id",
       headerName: "ID",
-      width: 105,
+      width: 110,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => (
-        <Typography variant="body2" fontWeight={600} color="primary.main">
-          #{params.value}
-        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
+          <Typography variant="body2" fontWeight={600} color="primary.main">
+            #{params.value}
+          </Typography>
+        </Box>
       ),
     },
     { field: "title", headerName: "Title", flex: 1, minWidth: 220 },

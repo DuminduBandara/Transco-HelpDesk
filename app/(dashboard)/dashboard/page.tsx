@@ -20,6 +20,8 @@ import {
   TableHead,
   TableRow,
   Divider,
+  Tooltip as MuiTooltip,
+  Chip,
 } from "@mui/material";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
@@ -28,6 +30,7 @@ import PersonOffIcon from "@mui/icons-material/PersonOff";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
 import ActivityFeed from "@/components/ActivityFeed";
@@ -99,6 +102,8 @@ export default function DashboardPage() {
   const [byPriority, setByPriority] = useState<PriorityCount[]>([]);
   const [unassigned, setUnassigned] = useState(0);
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
+  const [ticketsRefreshing, setTicketsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
@@ -131,20 +136,17 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!role) return;
-
-    async function load() {
-      setLoading(true);
+  const fetchLatestTickets = useCallback(
+    async (isPolling = false) => {
+      if (!role) return;
+      if (!isPolling) setTicketsRefreshing(true);
       try {
         if (role === "employee") {
-          const [ticketsRes, actRes] = await Promise.all([
-            fetch("/api/tickets?pageSize=100"),
-            fetch("/api/activities?limit=15"),
-          ]);
-          const data = await ticketsRes.json();
-          const actData = await actRes.json();
+          const res = await fetch("/api/tickets?pageSize=100");
+          const data = await res.json();
           const tickets: Ticket[] = data.tickets ?? [];
+          setRecentTickets(tickets.slice(0, 6));
+
           const counts: Record<string, number> = {};
           const pCounts: Record<string, number> = {};
           for (const t of tickets) {
@@ -157,36 +159,59 @@ export default function DashboardPage() {
           setByPriority(
             Object.entries(pCounts).map(([priority, count]) => ({ priority, count }))
           );
-          setRecentTickets(tickets.slice(0, 6));
-          setActivities(actData.activities ?? []);
         } else {
-          const [statsRes, ticketsRes, actRes] = await Promise.all([
+          const [statsRes, ticketsRes] = await Promise.all([
             fetch("/api/stats"),
             fetch("/api/tickets?pageSize=6"),
-            fetch("/api/activities?limit=15"),
           ]);
           const statsData = await statsRes.json();
           const ticketsData = await ticketsRes.json();
-          const actData = await actRes.json();
           setByStatus(statsData.byStatus ?? []);
           setByPriority(statsData.byPriority ?? []);
           setUnassigned(statsData.unassigned ?? 0);
           setRecentTickets(ticketsData.tickets ?? []);
-          setActivities(actData.activities ?? []);
         }
+        setLastUpdated(new Date());
       } catch (err) {
-        console.error("Failed to load dashboard data", err);
+        console.error("Failed to refresh latest tickets", err);
+      } finally {
+        if (!isPolling) setTicketsRefreshing(false);
+      }
+    },
+    [role]
+  );
+
+  useEffect(() => {
+    if (!role) return;
+
+    // Initial load
+    async function initialLoad() {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchLatestTickets(false),
+          fetchActivities(),
+        ]);
       } finally {
         setLoading(false);
       }
     }
-    load();
+    initialLoad();
 
     fetch("/api/db-status")
       .then((r) => r.json())
       .then((data) => setDbStatus(data))
       .catch(() => {});
-  }, [role]);
+
+    // Polling mechanism: automatically refresh the Latest Tickets table every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchLatestTickets(true);
+    }, 30000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [role, fetchLatestTickets, fetchActivities]);
 
   const getCount = (status: string) =>
     byStatus.find((s) => s.status === status)?.count ?? 0;
@@ -490,27 +515,77 @@ export default function DashboardPage() {
       {/* Latest / Recent Tickets Section */}
       <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
-          alignItems="center"
+          alignItems={{ sm: "center" }}
+          spacing={1.5}
           sx={{ mb: 2 }}
         >
           <Box>
-            <Typography variant="h6" fontWeight={600}>
-              Latest Tickets
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Typography variant="h6" fontWeight={600}>
+                Latest Tickets
+              </Typography>
+              <Chip
+                icon={
+                  <RefreshIcon
+                    sx={{
+                      fontSize: "14px !important",
+                      animation: ticketsRefreshing ? "spin 1s linear infinite" : "none",
+                    }}
+                  />
+                }
+                label={lastUpdated ? `Live · 30s auto-refresh` : "Auto-refreshing 30s"}
+                size="small"
+                variant="outlined"
+                color="primary"
+                sx={{
+                  height: 22,
+                  fontSize: "0.7rem",
+                  fontWeight: 500,
+                  "& .MuiChip-icon": { ml: 0.75 },
+                  "@keyframes spin": {
+                    "0%": { transform: "rotate(0deg)" },
+                    "100%": { transform: "rotate(360deg)" },
+                  },
+                }}
+              />
+            </Stack>
             <Typography variant="body2" color="text.secondary">
-              Most recent support tickets submitted across the platform
+              Most recent support tickets submitted across the platform {lastUpdated && `(Last updated: ${lastUpdated.toLocaleTimeString()})`}
             </Typography>
           </Box>
-          <Button
-            component={Link}
-            href="/tickets"
-            endIcon={<ArrowForwardIcon />}
-            size="small"
-          >
-            View All Tickets
-          </Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <MuiTooltip title="Refresh Latest Tickets now">
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={
+                    <RefreshIcon
+                      sx={{
+                        fontSize: 16,
+                        animation: ticketsRefreshing ? "spin 1s linear infinite" : "none",
+                      }}
+                    />
+                  }
+                  onClick={() => fetchLatestTickets(false)}
+                  disabled={ticketsRefreshing}
+                  sx={{ textTransform: "none", fontSize: "0.8rem", py: 0.4 }}
+                >
+                  {ticketsRefreshing ? "Refreshing..." : "Refresh"}
+                </Button>
+              </span>
+            </MuiTooltip>
+            <Button
+              component={Link}
+              href="/tickets"
+              endIcon={<ArrowForwardIcon />}
+              size="small"
+            >
+              View All Tickets
+            </Button>
+          </Stack>
         </Stack>
 
         <Divider sx={{ mb: 2 }} />
@@ -524,7 +599,7 @@ export default function DashboardPage() {
             <Table size="medium">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, width: 95 }}>ID</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, width: 95 }}>ID</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Title</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 120 }}>Priority</TableCell>
@@ -545,7 +620,7 @@ export default function DashboardPage() {
                       "&:last-child td, &:last-child th": { border: 0 },
                     }}
                   >
-                    <TableCell sx={{ fontWeight: 600, color: "primary.main" }}>#{t.id}</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600, color: "primary.main" }}>#{t.id}</TableCell>
                     <TableCell>
                       <Link
                         href={`/tickets/${t.id}`}

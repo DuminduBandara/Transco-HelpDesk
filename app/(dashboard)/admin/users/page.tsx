@@ -6,6 +6,7 @@ import {
   Typography,
   Paper,
   Button,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -17,9 +18,19 @@ import {
   Chip,
   Switch,
   FormControlLabel,
+  Tooltip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Divider,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DomainIcon from "@mui/icons-material/Domain";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import TuneIcon from "@mui/icons-material/Tune";
 import type { User, Role } from "@/types";
 
 const ROLE_COLORS: Record<Role, any> = {
@@ -36,7 +47,14 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // form state
+  // Departments state
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [deptManagerOpen, setDeptManagerOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [deptActionLoading, setDeptActionLoading] = useState(false);
+  const [deptError, setDeptError] = useState<string | null>(null);
+
+  // User form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,9 +70,22 @@ export default function AdminUsersPage() {
     setLoading(false);
   }, []);
 
+  const loadDepartments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/departments");
+      const data = await res.json();
+      if (data.departments) {
+        setDepartments(data.departments);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+    loadDepartments();
+  }, [loadUsers, loadDepartments]);
 
   function openCreateDialog() {
     setEditingUser(null);
@@ -62,7 +93,7 @@ export default function AdminUsersPage() {
     setEmail("");
     setPassword("");
     setRole("employee");
-    setDepartment("");
+    setDepartment(departments[0] || "");
     setIsActive(true);
     setError(null);
     setDialogOpen(true);
@@ -124,8 +155,63 @@ export default function AdminUsersPage() {
     loadUsers();
   }
 
+  async function handleAddDepartment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    setDeptActionLoading(true);
+    setDeptError(null);
+
+    try {
+      const res = await fetch("/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newDeptName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeptError(data.error || "Failed to add department");
+        return;
+      }
+      setDepartments(data.departments);
+      setNewDeptName("");
+      // If creating user, auto-select newly created department
+      if (!department) {
+        setDepartment(newDeptName.trim());
+      }
+    } catch {
+      setDeptError("Failed to add department. Please try again.");
+    } finally {
+      setDeptActionLoading(false);
+    }
+  }
+
+  async function handleDeleteDepartment(deptToRemove: string) {
+    setDeptActionLoading(true);
+    setDeptError(null);
+
+    try {
+      const res = await fetch(
+        `/api/departments?name=${encodeURIComponent(deptToRemove)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setDeptError(data.error || "Failed to delete department");
+        return;
+      }
+      setDepartments(data.departments);
+      if (department === deptToRemove) {
+        setDepartment("");
+      }
+    } catch {
+      setDeptError("Failed to delete department.");
+    } finally {
+      setDeptActionLoading(false);
+    }
+  }
+
   const columns: GridColDef<User>[] = [
-    { field: "id", headerName: "ID", width: 70 },
+    { field: "id", headerName: "ID", width: 70, align: "center", headerAlign: "center" },
     { field: "name", headerName: "Name", flex: 1, minWidth: 160 },
     { field: "email", headerName: "Email", flex: 1, minWidth: 220 },
     {
@@ -143,13 +229,13 @@ export default function AdminUsersPage() {
     {
       field: "department",
       headerName: "Department",
-      width: 150,
+      width: 170,
       valueGetter: (_value, row) => row.department ?? "—",
     },
     {
       field: "is_active",
       headerName: "Active",
-      width: 100,
+      width: 110,
       renderCell: (params) => (
         <Chip
           label={params.value ? "Active" : "Disabled"}
@@ -160,11 +246,27 @@ export default function AdminUsersPage() {
     },
     {
       field: "actions",
-      headerName: "",
-      width: 100,
+      headerName: "Actions",
+      width: 120,
       sortable: false,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => (
-        <Button size="small" onClick={() => openEditDialog(params.row)}>
+        <Button
+          size="small"
+          variant="outlined"
+          color="primary"
+          startIcon={<EditIcon fontSize="small" />}
+          onClick={() => openEditDialog(params.row)}
+          sx={{
+            textTransform: "none",
+            fontWeight: 600,
+            fontSize: "0.8rem",
+            py: 0.3,
+            px: 1.2,
+            borderRadius: 1.5,
+          }}
+        >
           Edit
         </Button>
       ),
@@ -174,21 +276,38 @@ export default function AdminUsersPage() {
   return (
     <Box>
       <Stack
-        direction="row"
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems="center"
+        alignItems={{ sm: "center" }}
+        spacing={2}
         sx={{ mb: 3 }}
       >
-        <Typography variant="h5" fontWeight={600}>
-          User Management
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={openCreateDialog}
-        >
-          New User
-        </Button>
+        <Box>
+          <Typography variant="h5" fontWeight={600}>
+            User Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage company employees, agents, roles, and organizational departments
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            variant="outlined"
+            startIcon={<DomainIcon />}
+            onClick={() => setDeptManagerOpen(true)}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Manage Departments
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openCreateDialog}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            New User
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper sx={{ height: 600 }}>
@@ -205,26 +324,30 @@ export default function AdminUsersPage() {
         />
       </Paper>
 
+      {/* Create / Edit User Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>{editingUser ? "Edit User" : "New User"}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          {editingUser ? "Edit User" : "Create New User"}
+        </DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2.2} sx={{ mt: 1 }}>
             <TextField
               label="Full Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               fullWidth
               required
+              size="small"
             />
             <TextField
               label="Email"
@@ -235,6 +358,7 @@ export default function AdminUsersPage() {
               required
               disabled={!!editingUser}
               helperText={editingUser ? "Email cannot be changed" : undefined}
+              size="small"
             />
             <TextField
               label={editingUser ? "New Password (optional)" : "Password"}
@@ -243,7 +367,8 @@ export default function AdminUsersPage() {
               onChange={(e) => setPassword(e.target.value)}
               fullWidth
               required={!editingUser}
-              helperText="Minimum 8 characters"
+              helperText={editingUser ? "Leave blank to keep existing password" : "Minimum 8 characters"}
+              size="small"
             />
             <TextField
               select
@@ -251,23 +376,62 @@ export default function AdminUsersPage() {
               value={role}
               onChange={(e) => setRole(e.target.value as Role)}
               fullWidth
+              size="small"
             >
               <MenuItem value="employee">Employee</MenuItem>
-              <MenuItem value="agent">Agent</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="agent">Agent (IT Staff)</MenuItem>
+              <MenuItem value="admin">Administrator</MenuItem>
             </TextField>
-            <TextField
-              label="Department"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              fullWidth
-            />
+
+            {/* Department Dropdown with specific list and manage link */}
+            <Box>
+              <TextField
+                select
+                label="Department"
+                value={department}
+                onChange={(e) => {
+                  if (e.target.value === "__MANAGE_DEPARTMENTS__") {
+                    setDeptManagerOpen(true);
+                  } else {
+                    setDepartment(e.target.value);
+                  }
+                }}
+                fullWidth
+                size="small"
+                helperText="Select or customize departments from the list"
+              >
+                <MenuItem value="">
+                  <em>— None / Unspecified —</em>
+                </MenuItem>
+                {departments.map((dept) => (
+                  <MenuItem key={dept} value={dept}>
+                    {dept}
+                  </MenuItem>
+                ))}
+                <Divider sx={{ my: 0.5 }} />
+                <MenuItem
+                  value="__MANAGE_DEPARTMENTS__"
+                  sx={{
+                    color: "primary.main",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <TuneIcon fontSize="small" />
+                  + Manage / Add Departments...
+                </MenuItem>
+              </TextField>
+            </Box>
+
             {editingUser && (
               <FormControlLabel
                 control={
                   <Switch
                     checked={isActive}
                     onChange={(e) => setIsActive(e.target.checked)}
+                    color="primary"
                   />
                 }
                 label="Account Active"
@@ -275,10 +439,102 @@ export default function AdminUsersPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Department Management Dialog */}
+      <Dialog
+        open={deptManagerOpen}
+        onClose={() => setDeptManagerOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+          <DomainIcon color="primary" />
+          Manage Departments List
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Admin can add or remove departments available across the user management and ticketing system.
+          </Typography>
+
+          {deptError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeptError(null)}>
+              {deptError}
+            </Alert>
+          )}
+
+          {/* Add Department Input */}
+          <Box component="form" onSubmit={handleAddDepartment} sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={1.5}>
+              <TextField
+                label="New Department Name"
+                value={newDeptName}
+                onChange={(e) => setNewDeptName(e.target.value)}
+                placeholder="e.g. Cybersecurity, Quality Assurance"
+                size="small"
+                fullWidth
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled={deptActionLoading || !newDeptName.trim()}
+                sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+              >
+                Add
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+            Current Departments ({departments.length})
+          </Typography>
+
+          <Paper variant="outlined" sx={{ maxHeight: 280, overflowY: "auto", borderRadius: 1.5 }}>
+            <List dense disablePadding>
+              {departments.length === 0 ? (
+                <ListItem>
+                  <ListItemText primary="No departments configured yet." />
+                </ListItem>
+              ) : (
+                departments.map((dept, index) => (
+                  <ListItem
+                    key={dept}
+                    divider={index < departments.length - 1}
+                    sx={{ py: 1 }}
+                  >
+                    <ListItemText
+                      primary={dept}
+                      primaryTypographyProps={{ fontWeight: 500, fontSize: "0.875rem" }}
+                    />
+                    <ListItemSecondaryAction>
+                      <Tooltip title={`Remove ${dept}`}>
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteDepartment(dept)}
+                          disabled={deptActionLoading}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))
+              )}
+            </List>
+          </Paper>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDeptManagerOpen(false)} variant="contained">
+            Done
           </Button>
         </DialogActions>
       </Dialog>

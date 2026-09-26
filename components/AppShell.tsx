@@ -26,6 +26,7 @@ import {
   useTheme,
   useMediaQuery,
   Chip,
+  Tooltip,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
@@ -43,6 +44,7 @@ import SessionTimeoutHandler from "@/components/SessionTimeoutHandler";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
 
 const DRAWER_WIDTH = 260;
+const DRAWER_MINI_WIDTH = 72;
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
@@ -134,8 +136,104 @@ export default function AppShell({ children }: { children: ReactNode }) {
     },
   ];
 
-  // Drawer inner content
-  const drawerContent = (
+  // Helper to render navigation items
+  const renderNavGroup = (
+    items: typeof navItems,
+    title: string | null,
+    isMini: boolean
+  ) => (
+    <List
+      disablePadding
+      subheader={
+        title && !isMini ? (
+          <ListSubheader
+            disableSticky
+            sx={{
+              bgcolor: "transparent",
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "text.secondary",
+              letterSpacing: 0.8,
+              textTransform: "uppercase",
+              px: 1.5,
+              mb: 0.5,
+            }}
+          >
+            {title}
+          </ListSubheader>
+        ) : undefined
+      }
+    >
+      {items.map((item) => {
+        const itemButton = (
+          <ListItemButton
+            component={Link}
+            href={item.href}
+            onClick={() => isMobile && setMobileOpen(false)}
+            selected={item.active}
+            sx={{
+              borderRadius: 2,
+              py: 1,
+              px: isMini ? 0 : 1.5,
+              minHeight: 44,
+              justifyContent: isMini ? "center" : "flex-start",
+              width: isMini ? 48 : "100%",
+              mx: isMini ? "auto" : 0,
+              mb: 0.5,
+              "&.Mui-selected": {
+                bgcolor: "rgba(21, 101, 192, 0.1)",
+                color: "primary.main",
+                fontWeight: 600,
+                "& .MuiListItemIcon-root": {
+                  color: "primary.main",
+                },
+                "&:hover": {
+                  bgcolor: "rgba(21, 101, 192, 0.16)",
+                },
+              },
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: isMini ? 0 : 36,
+                justifyContent: "center",
+                color: item.active ? "primary.main" : "text.secondary",
+              }}
+            >
+              {item.icon}
+            </ListItemIcon>
+            {!isMini && (
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontSize: "0.875rem",
+                  fontWeight: item.active ? 600 : 500,
+                }}
+              />
+            )}
+          </ListItemButton>
+        );
+
+        return (
+          <ListItem key={item.href} disablePadding sx={{ display: "block" }}>
+            {isMini ? (
+              <Tooltip title={item.label} placement="right" arrow>
+                {itemButton}
+              </Tooltip>
+            ) : (
+              itemButton
+            )}
+          </ListItem>
+        );
+      })}
+    </List>
+  );
+
+  // Drawer Content renderer (supporting both expanded and icon-only mini mode)
+  const renderDrawerContent = (isMini: boolean) => (
     <Box
       sx={{
         height: "100%",
@@ -148,330 +246,211 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Box
         sx={{
           height: 64,
-          px: 2.5,
+          px: isMini ? 1.5 : 2.5,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: isMini ? "center" : "space-between",
           borderBottom: "1px solid",
           borderColor: "divider",
         }}
       >
-        <Box
-          component={Link}
-          href="/dashboard"
-          onClick={() => isMobile && setMobileOpen(false)}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            textDecoration: "none",
-            color: "primary.main",
-            gap: 1.25,
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 38,
-              height: 38,
-              borderRadius: 1.5,
-              bgcolor: "primary.main",
-              color: "white",
-              boxShadow: "0 2px 6px rgba(21, 101, 192, 0.3)",
-            }}
-          >
-            <SupportAgentIcon fontSize="medium" />
-          </Box>
-          <Box>
-            <Typography
-              variant="subtitle1"
-              fontWeight={700}
-              sx={{ lineHeight: 1.2, color: "text.primary", letterSpacing: -0.3 }}
+        {isMini ? (
+          <Tooltip title="IT Help Desk - Dashboard" placement="right" arrow>
+            <Box
+              component={Link}
+              href="/dashboard"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 40,
+                height: 40,
+                borderRadius: 1.5,
+                bgcolor: "primary.main",
+                color: "white",
+                boxShadow: "0 2px 6px rgba(21, 101, 192, 0.3)",
+                textDecoration: "none",
+              }}
             >
-              IT Help Desk
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-              Service & Support Portal
-            </Typography>
-          </Box>
-        </Box>
+              <SupportAgentIcon fontSize="medium" />
+            </Box>
+          </Tooltip>
+        ) : (
+          <>
+            <Box
+              component={Link}
+              href="/dashboard"
+              onClick={() => isMobile && setMobileOpen(false)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                textDecoration: "none",
+                color: "primary.main",
+                gap: 1.25,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 1.5,
+                  bgcolor: "primary.main",
+                  color: "white",
+                  boxShadow: "0 2px 6px rgba(21, 101, 192, 0.3)",
+                }}
+              >
+                <SupportAgentIcon fontSize="medium" />
+              </Box>
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{ lineHeight: 1.2, color: "text.primary", letterSpacing: -0.3 }}
+                >
+                  IT Help Desk
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                  Service & Support Portal
+                </Typography>
+              </Box>
+            </Box>
 
-        {isMobile && (
-          <IconButton size="small" onClick={() => setMobileOpen(false)}>
-            <ChevronLeftIcon />
-          </IconButton>
+            {isMobile && (
+              <IconButton size="small" onClick={() => setMobileOpen(false)}>
+                <ChevronLeftIcon />
+              </IconButton>
+            )}
+          </>
         )}
       </Box>
 
-      {/* Main Navigation */}
-      <Box sx={{ flexGrow: 1, py: 2, px: 1.5, overflowY: "auto" }}>
-        <List
-          disablePadding
-          subheader={
-            <ListSubheader
-              disableSticky
-              sx={{
-                bgcolor: "transparent",
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                color: "text.secondary",
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
-                px: 1.5,
-                mb: 0.5,
-              }}
-            >
-              Main Menu
-            </ListSubheader>
-          }
-        >
-          {navItems.map((item) => (
-            <ListItem key={item.href} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={Link}
-                href={item.href}
-                onClick={() => isMobile && setMobileOpen(false)}
-                selected={item.active}
-                sx={{
-                  borderRadius: 1.5,
-                  py: 1,
-                  px: 1.5,
-                  "&.Mui-selected": {
-                    bgcolor: "rgba(21, 101, 192, 0.08)",
-                    color: "primary.main",
-                    fontWeight: 600,
-                    "& .MuiListItemIcon-root": {
-                      color: "primary.main",
-                    },
-                    "&:hover": {
-                      bgcolor: "rgba(21, 101, 192, 0.12)",
-                    },
-                  },
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 36,
-                    color: item.active ? "primary.main" : "text.secondary",
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontSize: "0.875rem",
-                    fontWeight: item.active ? 600 : 500,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+      {/* Main Navigation List */}
+      <Box sx={{ flexGrow: 1, py: 2, px: isMini ? 0.75 : 1.5, overflowY: "auto" }}>
+        {renderNavGroup(navItems, "Main Menu", isMini)}
 
-        {/* Admin Navigation (if role is admin) */}
         {adminNavItems.length > 0 && (
           <>
-            <Divider sx={{ my: 2 }} />
-            <List
-              disablePadding
-              subheader={
-                <ListSubheader
-                  disableSticky
-                  sx={{
-                    bgcolor: "transparent",
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    color: "text.secondary",
-                    letterSpacing: 0.8,
-                    textTransform: "uppercase",
-                    px: 1.5,
-                    mb: 0.5,
-                  }}
-                >
-                  Administration
-                </ListSubheader>
-              }
-            >
-              {adminNavItems.map((item) => (
-                <ListItem key={item.href} disablePadding sx={{ mb: 0.5 }}>
-                  <ListItemButton
-                    component={Link}
-                    href={item.href}
-                    onClick={() => isMobile && setMobileOpen(false)}
-                    selected={item.active}
-                    sx={{
-                      borderRadius: 1.5,
-                      py: 1,
-                      px: 1.5,
-                      "&.Mui-selected": {
-                        bgcolor: "rgba(21, 101, 192, 0.08)",
-                        color: "primary.main",
-                        fontWeight: 600,
-                        "& .MuiListItemIcon-root": {
-                          color: "primary.main",
-                        },
-                        "&:hover": {
-                          bgcolor: "rgba(21, 101, 192, 0.12)",
-                        },
-                      },
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{
-                        minWidth: 36,
-                        color: item.active ? "primary.main" : "text.secondary",
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        fontSize: "0.875rem",
-                        fontWeight: item.active ? 600 : 500,
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
+            <Divider sx={{ my: isMini ? 1.5 : 2 }} />
+            {renderNavGroup(adminNavItems, "Administration", isMini)}
           </>
         )}
 
-        {/* Account Section */}
-        <Divider sx={{ my: 2 }} />
-        <List
-          disablePadding
-          subheader={
-            <ListSubheader
-              disableSticky
-              sx={{
-                bgcolor: "transparent",
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                color: "text.secondary",
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
-                px: 1.5,
-                mb: 0.5,
-              }}
-            >
-              Account
-            </ListSubheader>
-          }
-        >
-          {accountNavItems.map((item) => (
-            <ListItem key={item.href} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={Link}
-                href={item.href}
-                onClick={() => isMobile && setMobileOpen(false)}
-                selected={item.active}
-                sx={{
-                  borderRadius: 1.5,
-                  py: 1,
-                  px: 1.5,
-                  "&.Mui-selected": {
-                    bgcolor: "rgba(21, 101, 192, 0.08)",
-                    color: "primary.main",
-                    fontWeight: 600,
-                    "& .MuiListItemIcon-root": {
-                      color: "primary.main",
-                    },
-                    "&:hover": {
-                      bgcolor: "rgba(21, 101, 192, 0.12)",
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 36,
-                    color: item.active ? "primary.main" : "text.secondary",
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontSize: "0.875rem",
-                    fontWeight: item.active ? 600 : 500,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+        <Divider sx={{ my: isMini ? 1.5 : 2 }} />
+        {renderNavGroup(accountNavItems, "Account", isMini)}
       </Box>
 
-      {/* Drawer Footer User Card */}
+      {/* Drawer Bottom User Card / Actions */}
       <Box
         sx={{
-          p: 2,
+          p: isMini ? 1.5 : 2,
           borderTop: "1px solid",
           borderColor: "divider",
           bgcolor: "grey.50",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: isMini ? "center" : "stretch",
+          gap: 1.5,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-          <Avatar
-            sx={{
-              width: 36,
-              height: 36,
-              bgcolor: "primary.main",
-              color: "white",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-            }}
-          >
-            {userInitial}
-          </Avatar>
-          <Box sx={{ overflow: "hidden", flex: 1 }}>
-            <Typography
-              variant="body2"
-              fontWeight={600}
-              noWrap
-              sx={{ color: "text.primary" }}
-            >
-              {userName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap display="block">
-              {userEmail}
-            </Typography>
-          </Box>
-        </Box>
+        {isMini ? (
+          <>
+            <Tooltip title={`${userName} (${role?.toUpperCase()})`} placement="right" arrow>
+              <Avatar
+                component={Link}
+                href="/profile"
+                sx={{
+                  width: 38,
+                  height: 38,
+                  bgcolor: "primary.main",
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  textDecoration: "none",
+                }}
+              >
+                {userInitial}
+              </Avatar>
+            </Tooltip>
 
-        <Button
-          fullWidth
-          variant="outlined"
-          size="small"
-          color="inherit"
-          startIcon={<LogoutIcon fontSize="small" />}
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          sx={{
-            justifyContent: "flex-start",
-            textTransform: "none",
-            color: "text.secondary",
-            borderColor: "divider",
-            py: 0.6,
-            "&:hover": {
-              borderColor: "error.main",
-              color: "error.main",
-              bgcolor: "error.50",
-            },
-          }}
-        >
-          Sign Out
-        </Button>
+            <Tooltip title="Sign Out" placement="right" arrow>
+              <IconButton
+                size="small"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                sx={{
+                  color: "error.main",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "white",
+                  "&:hover": { bgcolor: "error.50", borderColor: "error.main" },
+                }}
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Avatar
+                sx={{
+                  width: 36,
+                  height: 36,
+                  bgcolor: "primary.main",
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                }}
+              >
+                {userInitial}
+              </Avatar>
+              <Box sx={{ overflow: "hidden", flex: 1 }}>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  noWrap
+                  sx={{ color: "text.primary" }}
+                >
+                  {userName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block">
+                  {userEmail}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              size="small"
+              color="inherit"
+              startIcon={<LogoutIcon fontSize="small" />}
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              sx={{
+                justifyContent: "flex-start",
+                textTransform: "none",
+                color: "text.secondary",
+                borderColor: "divider",
+                py: 0.6,
+                "&:hover": {
+                  borderColor: "error.main",
+                  color: "error.main",
+                  bgcolor: "error.50",
+                },
+              }}
+            >
+              Sign Out
+            </Button>
+          </>
+        )}
       </Box>
     </Box>
   );
+
+  const desktopDrawerWidth = desktopOpen ? DRAWER_WIDTH : DRAWER_MINI_WIDTH;
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
@@ -726,7 +705,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Box
         component="nav"
         sx={{
-          width: { md: desktopOpen ? DRAWER_WIDTH : 0 },
+          width: { xs: 0, md: desktopDrawerWidth },
           flexShrink: { md: 0 },
           transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
@@ -751,26 +730,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
             },
           }}
         >
-          {drawerContent}
+          {renderDrawerContent(false)}
         </Drawer>
 
-        {/* Desktop Persistent Drawer */}
+        {/* Desktop Mini / Full Persistent Drawer */}
         <Drawer
-          variant="persistent"
-          open={desktopOpen}
+          variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
-              width: DRAWER_WIDTH,
+              width: desktopDrawerWidth,
               borderRight: "1px solid",
               borderColor: "divider",
+              overflowX: "hidden",
               top: 0,
               height: "100vh",
+              transition: theme.transitions.create("width", {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
             },
           }}
         >
-          {drawerContent}
+          {renderDrawerContent(!desktopOpen)}
         </Drawer>
       </Box>
 
@@ -781,7 +764,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           flexGrow: 1,
           width: {
             xs: "100%",
-            md: `calc(100% - ${desktopOpen ? DRAWER_WIDTH : 0}px)`,
+            md: `calc(100% - ${desktopDrawerWidth}px)`,
           },
           minHeight: "100vh",
           display: "flex",
