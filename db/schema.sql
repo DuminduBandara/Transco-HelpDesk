@@ -87,11 +87,18 @@ CREATE TABLE ticket_comments (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- Seed an initial admin user
--- Password: Admin@123  (bcrypt hash below — CHANGE after first login)
--- Generate your own with: node -e "console.log(require('bcryptjs').hashSync('yourpassword', 10))"
+-- Seed initial users
+-- Default Password for all: Admin@123
+-- Verified bcrypt hash: $2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra
+-- Generate custom hashes with: node scripts/hash-password.js "yourpassword"
 -- ------------------------------------------------------------
 INSERT INTO users (name, email, password_hash, role, department) VALUES
   ('System Admin', 'admin@company.com',
-   '$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu',
-   'admin', 'IT');
+   '$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra',
+   'admin', 'IT'),
+  ('Sarah Agent', 'agent@company.com',
+   '$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra',
+   'agent', 'IT Support'),
+  ('John Employee', 'employee@company.com',
+   '$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra',
+   'employee', 'Operations');

@@ -80,7 +80,7 @@ function getInitialMockState(): MockDbState {
         name: "System Admin",
         email: "admin@company.com",
         // Password: Admin@123
-        password_hash: "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+        password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "admin",
         department: "IT",
         is_active: 1,
@@ -92,7 +92,7 @@ function getInitialMockState(): MockDbState {
         name: "Sarah Agent",
         email: "agent@company.com",
         // Password: Admin@123
-        password_hash: "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+        password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "agent",
         department: "IT Support",
         is_active: 1,
@@ -104,7 +104,7 @@ function getInitialMockState(): MockDbState {
         name: "John Employee",
         email: "employee@company.com",
         // Password: Admin@123
-        password_hash: "$2b$10$CwTycUXWue0Thq9StjUM0uJ8G5x5j8rHl5F0mF6D2h6cxOZ1zH1Cu",
+        password_hash: "$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra",
         role: "employee",
         department: "Operations",
         is_active: 1,
@@ -327,7 +327,10 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   const norm = sql.trim().replace(/\s+/g, " ");
 
   // 1. SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ? LIMIT 1
-  if (norm.startsWith("SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ?")) {
+  if (
+    norm.startsWith("SELECT id, name, email, password_hash, role, is_active FROM users") &&
+    (norm.includes("WHERE email = ?") || norm.includes("WHERE LOWER(email) = ?"))
+  ) {
     const email = String(params[0] ?? "").toLowerCase();
     const user = mockDb.users.find((u) => u.email.toLowerCase() === email);
     return user ? ([{ ...user }] as unknown as T[]) : ([] as T[]);
@@ -538,11 +541,11 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
     return u ? ([{ id: u.id }] as unknown as T[]) : ([] as T[]);
   }
 
-  // 14. User lookup by id: SELECT id FROM users WHERE id = ?
+  // 14. User lookup by id: SELECT ... FROM users WHERE id = ?
   if (norm.includes("FROM users WHERE id = ?")) {
     const id = Number(params[0]);
     const u = mockDb.users.find((user) => user.id === id);
-    return u ? ([{ id: u.id }] as unknown as T[]) : ([] as T[]);
+    return u ? ([{ ...u }] as unknown as T[]) : ([] as T[]);
   }
 
   // 15. Activity feed query

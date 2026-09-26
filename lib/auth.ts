@@ -28,9 +28,10 @@ export const authOptions: AuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const email = credentials.email.trim().toLowerCase();
         const rows = await query<DbUserRow>(
-          "SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ? LIMIT 1",
-          [credentials.email]
+          "SELECT id, name, email, password_hash, role, is_active FROM users WHERE LOWER(email) = ? LIMIT 1",
+          [email]
         );
         const user = rows[0];
         if (!user || !user.is_active) return null;

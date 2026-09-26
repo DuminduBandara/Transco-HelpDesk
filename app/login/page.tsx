@@ -39,7 +39,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const result = await signIn("credentials", {
-      email,
+      email: email.trim(),
       password,
       redirect: false,
     });
@@ -47,10 +47,20 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid email or password.");
+      setError("Invalid email or password. Please check your credentials.");
       return;
     }
-    router.push("/dashboard");
+
+    let target = "/dashboard";
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const callback = params.get("callbackUrl");
+      if (callback && callback.startsWith("/") && !callback.startsWith("//")) {
+        target = callback;
+      }
+    }
+
+    router.push(target);
     router.refresh();
   }
 
@@ -121,6 +131,77 @@ export default function LoginPage() {
               fullWidth
             >
               {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </Stack>
+        </Box>
+
+        <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed", borderColor: "divider" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            display="block"
+            sx={{ mb: 1, textTransform: "uppercase", letterSpacing: 0.5 }}
+          >
+            Demo Accounts (Password: Admin@123)
+          </Typography>
+          <Stack spacing={0.75}>
+            <Button
+              variant="outlined"
+              size="small"
+              color="primary"
+              onClick={() => {
+                setEmail("admin@company.com");
+                setPassword("Admin@123");
+                setError(null);
+              }}
+              sx={{
+                justifyContent: "space-between",
+                textTransform: "none",
+                fontSize: "0.75rem",
+                py: 0.5,
+              }}
+            >
+              <span>👑 Admin: <b>admin@company.com</b></span>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Click to Fill</Typography>
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              color="info"
+              onClick={() => {
+                setEmail("agent@company.com");
+                setPassword("Admin@123");
+                setError(null);
+              }}
+              sx={{
+                justifyContent: "space-between",
+                textTransform: "none",
+                fontSize: "0.75rem",
+                py: 0.5,
+              }}
+            >
+              <span>🎧 Agent: <b>agent@company.com</b></span>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Click to Fill</Typography>
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              color="secondary"
+              onClick={() => {
+                setEmail("employee@company.com");
+                setPassword("Admin@123");
+                setError(null);
+              }}
+              sx={{
+                justifyContent: "space-between",
+                textTransform: "none",
+                fontSize: "0.75rem",
+                py: 0.5,
+              }}
+            >
+              <span>👤 Employee: <b>employee@company.com</b></span>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Click to Fill</Typography>
             </Button>
           </Stack>
         </Box>
