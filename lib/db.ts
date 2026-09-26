@@ -296,28 +296,87 @@ function formatDate(date = new Date()) {
   return date.toISOString().replace("T", " ").substring(0, 19);
 }
 
+export let lastDbError: string | null = null;
+export let isUsingMockFallback: boolean = false;
+
 function createPool() {
   if (!process.env.DB_HOST) {
+    lastDbError = "DB_HOST environment variable is not defined";
+    isUsingMockFallback = true;
     return null;
   }
-  return mysql.createPool({
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT ?? 3306),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    maxIdle: 10,
-    idleTimeout: 60000,
-    queueLimit: 0,
-    dateStrings: true,
-  });
+  try {
+    return mysql.createPool({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 3306,
+      user: process.env.DB_USER || "root",
+      password: process.env.DB_PASSWORD || "",
+      database: process.env.DB_NAME || "helpdesk",
+      waitForConnections: true,
+      connectionLimit: 10,
+      maxIdle: 10,
+      idleTimeout: 60000,
+      queueLimit: 0,
+      dateStrings: true,
+      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+    });
+  } catch (err) {
+    lastDbError = (err as Error).message;
+    isUsingMockFallback = true;
+    return null;
+  }
 }
 
 export const pool = globalThis._mysqlPool ?? createPool();
 if (process.env.NODE_ENV !== "production" && pool) {
   globalThis._mysqlPool = pool;
+}
+
+export async function getDbConnectionStatus() {
+  if (!pool) {
+    return {
+      connected: false,
+      isMock: true,
+      error: lastDbError || "No MySQL pool initialized (DB_HOST not set)",
+      config: {
+        host: process.env.DB_HOST || "(not set)",
+        port: process.env.DB_PORT || "3306",
+        user: process.env.DB_USER || "(not set)",
+        database: process.env.DB_NAME || "(not set)",
+      },
+    };
+  }
+
+  try {
+    const [rows] = await pool.query("SELECT 1 AS alive");
+    lastDbError = null;
+    isUsingMockFallback = false;
+    return {
+      connected: true,
+      isMock: false,
+      error: null,
+      config: {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT || "3306",
+        user: process.env.DB_USER,
+        database: process.env.DB_NAME,
+      },
+    };
+  } catch (err) {
+    lastDbError = (err as Error).message;
+    isUsingMockFallback = true;
+    return {
+      connected: false,
+      isMock: true,
+      error: (err as Error).message,
+      config: {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT || "3306",
+        user: process.env.DB_USER,
+        database: process.env.DB_NAME,
+      },
+    };
+  }
 }
 
 /**
@@ -837,7 +896,8 @@ export async function query<T = any>(
       const [rows] = await pool.query(sql, params as any);
       return rows as T[];
     } catch (err) {
-      console.warn("[DB] MySQL query failed, falling back to mock:", (err as Error).message);
+      lastDbError = (err as Error).message;
+      console.warn("[DB] ⚠️ MySQL query failed, falling back to mock:", (err as Error).message);
     }
   }
   return mockQuery<T>(sql, params);
@@ -855,7 +915,8 @@ export async function execute(
       const [result] = await pool.execute(sql, params as any);
       return result as mysql.ResultSetHeader;
     } catch (err) {
-      console.warn("[DB] MySQL execute failed, falling back to mock:", (err as Error).message);
+      lastDbError = (err as Error).message;
+      console.error("[DB] ❌ MySQL execute failed, falling back to mock:", (err as Error).message);
     }
   }
   return mockExecute(sql, params);

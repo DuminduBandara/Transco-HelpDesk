@@ -120,10 +120,38 @@ export async function POST(req: NextRequest) {
     ticketId = generateTicketId();
   }
 
+  // Ensure creatorId exists in MySQL users table (resolves FK constraint)
+  let creatorId = user.id;
+  const userCheck = await query<{ id: number }>(
+    "SELECT id FROM users WHERE id = ? LIMIT 1",
+    [creatorId]
+  );
+  if (!userCheck || userCheck.length === 0) {
+    const userByEmail = await query<{ id: number }>(
+      "SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1",
+      [user.email.toLowerCase()]
+    );
+    if (userByEmail && userByEmail[0]) {
+      creatorId = userByEmail[0].id;
+    }
+  }
+
+  // Ensure category_id exists or is null to avoid FK constraint error
+  let validCategoryId: number | null = null;
+  if (category_id) {
+    const catCheck = await query<{ id: number }>(
+      "SELECT id FROM categories WHERE id = ? LIMIT 1",
+      [category_id]
+    );
+    if (catCheck && catCheck.length > 0) {
+      validCategoryId = catCheck[0].id;
+    }
+  }
+
   await execute(
     `INSERT INTO tickets (id, title, description, priority, category_id, created_by, status)
      VALUES (?, ?, ?, ?, ?, ?, 'open')`,
-    [ticketId, title, description, priority, category_id ?? null, user.id]
+    [ticketId, title, description, priority, validCategoryId, creatorId]
   );
 
   return NextResponse.json({ id: ticketId }, { status: 201 });

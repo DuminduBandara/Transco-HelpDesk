@@ -111,6 +111,13 @@ export default function DashboardPage() {
   const [downloadingReport, setDownloadingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
 
+  const [dbStatus, setDbStatus] = useState<{
+    connected: boolean;
+    isMock: boolean;
+    error: string | null;
+    config?: { host: string; port: string; user: string; database: string };
+  } | null>(null);
+
   const fetchActivities = useCallback(async () => {
     setActivitiesLoading(true);
     try {
@@ -174,6 +181,11 @@ export default function DashboardPage() {
       }
     }
     load();
+
+    fetch("/api/db-status")
+      .then((r) => r.json())
+      .then((data) => setDbStatus(data))
+      .catch(() => {});
   }, [role]);
 
   const getCount = (status: string) =>
@@ -252,6 +264,22 @@ export default function DashboardPage() {
           New Ticket
         </Button>
       </Box>
+
+      {/* Database Connection Notice */}
+      {dbStatus && !dbStatus.connected && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            MySQL Storage Notice: Operating in In-Memory Fallback Mode
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            The app could not connect to MySQL (<code>{dbStatus.error || "Connection refused"}</code>).
+            Tickets and actions created now are kept in temporary RAM memory and will <b>not be stored in your MySQL database</b> until MySQL connection is established.
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+            Target: <code>{dbStatus.config?.user}@{dbStatus.config?.host}:{dbStatus.config?.port}/{dbStatus.config?.database}</code>. Check your <code>.env</code> file or MySQL service.
+          </Typography>
+        </Alert>
+      )}
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
