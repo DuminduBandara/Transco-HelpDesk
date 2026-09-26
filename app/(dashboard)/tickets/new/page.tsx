@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Box,
   Paper,
@@ -35,27 +36,32 @@ export default function NewTicketPage() {
     setError(null);
     setSubmitting(true);
 
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        description,
-        priority,
-        category_id: categoryId ? Number(categoryId) : null,
-      }),
-    });
+    try {
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          priority,
+          category_id: categoryId ? Number(categoryId) : null,
+        }),
+      });
 
-    setSubmitting(false);
+      if (!res.ok) {
+        setSubmitting(false);
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Something went wrong. Please try again.");
-      return;
+      const data = await res.json();
+      router.push(`/tickets/${data.id}`);
+      router.refresh();
+    } catch {
+      setSubmitting(false);
+      setError("Network or submission error. Please try again.");
     }
-
-    const data = await res.json();
-    router.push(`/tickets/${data.id}`);
   }
 
   return (
@@ -118,7 +124,11 @@ export default function NewTicketPage() {
             </TextField>
 
             <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button onClick={() => router.back()} disabled={submitting}>
+              <Button
+                component={Link}
+                href="/tickets"
+                disabled={submitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" variant="contained" disabled={submitting}>
