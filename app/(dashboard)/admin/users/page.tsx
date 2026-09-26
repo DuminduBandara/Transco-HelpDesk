@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import {
   Box,
   Typography,
@@ -31,6 +32,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DomainIcon from "@mui/icons-material/Domain";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TuneIcon from "@mui/icons-material/Tune";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { User, Role } from "@/types";
 
 const ROLE_COLORS: Record<Role, any> = {
@@ -40,12 +42,19 @@ const ROLE_COLORS: Record<Role, any> = {
 };
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Delete user state
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Departments state
   const [departments, setDepartments] = useState<string[]>([]);
@@ -106,9 +115,41 @@ export default function AdminUsersPage() {
     setPassword("");
     setRole(user.role);
     setDepartment(user.department ?? "");
-    setIsActive(user.is_active);
+    setIsActive(user.role === "admin" ? true : user.is_active);
     setError(null);
     setDialogOpen(true);
+  }
+
+  function openDeleteDialog(user: User) {
+    setUserToDelete(user);
+    setDeleteError(null);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!userToDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/users/${userToDelete.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setDeleteError(data.error || "Failed to delete user.");
+        return;
+      }
+
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
+      loadUsers();
+    } catch {
+      setDeleteError("An unexpected error occurred while deleting the user.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleSave() {
@@ -118,10 +159,12 @@ export default function AdminUsersPage() {
     let res: Response;
     if (editingUser) {
       const patch: Record<string, unknown> = {
-        name,
+        name: name.trim(),
+        email: email.trim(),
         role,
         department: department || null,
-        is_active: isActive,
+        // Admin profiles are always active
+        is_active: role === "admin" ? true : isActive,
       };
       if (password) patch.password = password;
       res = await fetch(`/api/users/${editingUser.id}`, {
@@ -134,8 +177,8 @@ export default function AdminUsersPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim(),
           password,
           role,
           department: department || null,
@@ -210,6 +253,8 @@ export default function AdminUsersPage() {
     }
   }
 
+  const currentAdminEmail = session?.user?.email?.toLowerCase();
+
   const columns: GridColDef<User>[] = [
     { field: "id", headerName: "ID", width: 70, align: "center", headerAlign: "center" },
     { field: "name", headerName: "Name", flex: 1, minWidth: 160 },
@@ -235,41 +280,89 @@ export default function AdminUsersPage() {
     {
       field: "is_active",
       headerName: "Active",
-      width: 110,
-      renderCell: (params) => (
-        <Chip
-          label={params.value ? "Active" : "Disabled"}
-          size="small"
-          color={params.value ? "success" : "default"}
-        />
-      ),
+      width: 120,
+      align: "center",
+      headerAlign: "center",
+      renderCell: (params) => {
+        // Admin profiles cannot be inactive / active toggle removed
+        if (params.row.role === "admin") {
+          return (
+            <Chip
+              label="Active"
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          );
+        }
+        return (
+          <Chip
+            label={params.value ? "Active" : "Disabled"}
+            size="small"
+            color={params.value ? "success" : "default"}
+          />
+        );
+      },
     },
     {
       field: "actions",
       headerName: "Actions",
-      width: 120,
+      width: 170,
       sortable: false,
       align: "center",
       headerAlign: "center",
-      renderCell: (params) => (
-        <Button
-          size="small"
-          variant="outlined"
-          color="primary"
-          startIcon={<EditIcon fontSize="small" />}
-          onClick={() => openEditDialog(params.row)}
-          sx={{
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: "0.8rem",
-            py: 0.3,
-            px: 1.2,
-            borderRadius: 1.5,
-          }}
-        >
-          Edit
-        </Button>
-      ),
+      renderCell: (params) => {
+        const isSelf = currentAdminEmail && params.row.email.toLowerCase() === currentAdminEmail;
+
+        return (
+          <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              startIcon={<EditIcon fontSize="small" />}
+              onClick={() => openEditDialog(params.row)}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "0.78rem",
+                py: 0.3,
+                px: 1,
+                borderRadius: 1.5,
+              }}
+            >
+              Edit
+            </Button>
+
+            {isSelf ? (
+              <Tooltip title="You cannot delete your own admin account">
+                <span>
+                  <IconButton size="small" disabled sx={{ opacity: 0.35 }}>
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : (
+              <Tooltip title={`Delete user ${params.row.name}`}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => openDeleteDialog(params.row)}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "error.light",
+                    borderRadius: 1.5,
+                    "&:hover": { bgcolor: "error.50" },
+                  }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        );
+      },
     },
   ];
 
@@ -287,7 +380,7 @@ export default function AdminUsersPage() {
             User Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage company employees, agents, roles, and organizational departments
+            Manage company employees, agents, roles, emails, and organizational departments
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5}>
@@ -349,6 +442,8 @@ export default function AdminUsersPage() {
               required
               size="small"
             />
+
+            {/* Email Field: Admin can change email */}
             <TextField
               label="Email"
               type="email"
@@ -356,10 +451,10 @@ export default function AdminUsersPage() {
               onChange={(e) => setEmail(e.target.value)}
               fullWidth
               required
-              disabled={!!editingUser}
-              helperText={editingUser ? "Email cannot be changed" : undefined}
               size="small"
+              helperText={editingUser ? "Admin can change this user's email address" : undefined}
             />
+
             <TextField
               label={editingUser ? "New Password (optional)" : "Password"}
               type="password"
@@ -374,7 +469,13 @@ export default function AdminUsersPage() {
               select
               label="Role"
               value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
+              onChange={(e) => {
+                const nextRole = e.target.value as Role;
+                setRole(nextRole);
+                if (nextRole === "admin") {
+                  setIsActive(true);
+                }
+              }}
               fullWidth
               size="small"
             >
@@ -425,7 +526,8 @@ export default function AdminUsersPage() {
               </TextField>
             </Box>
 
-            {editingUser && (
+            {/* Active / Inactive switch: REMOVED for admin profiles */}
+            {editingUser && role !== "admin" && (
               <FormControlLabel
                 control={
                   <Switch
@@ -439,10 +541,86 @@ export default function AdminUsersPage() {
             )}
           </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, justifyContent: "space-between" }}>
+          {editingUser && currentAdminEmail && editingUser.email.toLowerCase() !== currentAdminEmail ? (
+            <Button
+              color="error"
+              onClick={() => {
+                setDialogOpen(false);
+                openDeleteDialog(editingUser);
+              }}
+              startIcon={<DeleteOutlineIcon />}
+              sx={{ textTransform: "none" }}
+            >
+              Delete User
+            </Button>
+          ) : (
+            <Box />
+          )}
+
+          <Stack direction="row" spacing={1}>
+            <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+            </Button>
+          </Stack>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => !deleting && setDeleteConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+          <WarningAmberIcon color="error" />
+          Delete User Account
+        </DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            Are you sure you want to permanently delete this user account?
+          </Typography>
+
+          {userToDelete && (
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1.5, mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {userToDelete.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {userToDelete.email}
+              </Typography>
+              <Chip
+                label={userToDelete.role.toUpperCase()}
+                size="small"
+                color={ROLE_COLORS[userToDelete.role]}
+                sx={{ mt: 1, height: 20, fontSize: "0.68rem" }}
+              />
+            </Paper>
+          )}
+
+          <Typography variant="caption" color="text.secondary" display="block">
+            * Note: Tickets created by this user will be reassigned to your administrator account to maintain audit history. This action cannot be undone.
+          </Typography>
+        </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+          <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting..." : "Confirm Delete"}
           </Button>
         </DialogActions>
       </Dialog>

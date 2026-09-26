@@ -866,6 +866,8 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
     for (const clause of clauses) {
       if (clause.startsWith("name = ?")) {
         user.name = String(params[pIdx++]);
+      } else if (clause.startsWith("email = ?")) {
+        user.email = String(params[pIdx++]);
       } else if (clause.startsWith("role = ?")) {
         user.role = params[pIdx++] as Role;
       } else if (clause.startsWith("department = ?")) {
@@ -878,6 +880,23 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
     }
     user.updated_at = now;
     return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
+  }
+
+  // 8. Delete user: DELETE FROM users WHERE id = ?
+  if (norm.startsWith("DELETE FROM users WHERE id = ?")) {
+    const userId = Number(params[0]);
+    const idx = mockDb.users.findIndex((u) => u.id === userId);
+    if (idx !== -1) {
+      mockDb.users.splice(idx, 1);
+      // Clean up assigned tickets
+      for (const t of mockDb.tickets) {
+        if (t.assigned_to === userId) {
+          t.assigned_to = null;
+        }
+      }
+      return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
+    }
+    return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
   }
 
   console.warn("[Mock DB] Unmatched execute:", sql, params);
