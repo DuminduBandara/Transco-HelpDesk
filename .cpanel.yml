@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/atflljuu/helpdesk/
+    - /bin/cp -R * $DEPLOYPATH
+    - cd $DEPLOYPATH && npm install --legacy-peer-deps
+    - cd $DEPLOYPATH && npm run build
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
