@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   const endDate = `${month}-${String(lastDay).padStart(2, "0")} 23:59:59`;
 
   const tickets = await query<{
-    id: number;
+    id: string;
     title: string;
     description: string;
     status: string;

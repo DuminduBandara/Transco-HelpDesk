@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import type { Role, TicketPriority, TicketStatus, ActivityType } from "@/types";
+import { generateTicketId } from "@/lib/ticketId";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -26,7 +27,7 @@ interface MockCategory {
 }
 
 interface MockTicket {
-  id: number;
+  id: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -41,7 +42,7 @@ interface MockTicket {
 
 interface MockComment {
   id: number;
-  ticket_id: number;
+  ticket_id: string;
   user_id: number;
   comment: string;
   created_at: string;
@@ -50,7 +51,7 @@ interface MockComment {
 interface MockActivity {
   id: string | number;
   type: ActivityType;
-  ticket_id: number;
+  ticket_id: string;
   ticket_title: string;
   ticket_status?: TicketStatus;
   ticket_priority?: TicketPriority;
@@ -68,7 +69,6 @@ interface MockDbState {
   comments: MockComment[];
   activities: MockActivity[];
   nextUserId: number;
-  nextTicketId: number;
   nextCommentId: number;
 }
 
@@ -121,7 +121,7 @@ function getInitialMockState(): MockDbState {
     ],
     tickets: [
       {
-        id: 1,
+        id: "TK1001",
         title: "Dual monitor setup not detected after docking station update",
         description: "Secondary display shows 'No Signal' after firmware update on Dell Thunderbolt dock. Tested with HDMI and DisplayPort cables.",
         status: "open",
@@ -134,7 +134,7 @@ function getInitialMockState(): MockDbState {
         resolved_at: null,
       },
       {
-        id: 2,
+        id: "TK1002",
         title: "Request access to Production Logs dashboard",
         description: "Need read-only access to Datadog production log viewer for customer support investigations.",
         status: "in_progress",
@@ -147,7 +147,7 @@ function getInitialMockState(): MockDbState {
         resolved_at: null,
       },
       {
-        id: 3,
+        id: "TK1003",
         title: "VPN client disconnection every 30 minutes",
         description: "Cisco AnyConnect disconnects intermittently on home Wi-Fi with error code 412.",
         status: "resolved",
@@ -160,7 +160,7 @@ function getInitialMockState(): MockDbState {
         resolved_at: "2026-09-22 10:00:00",
       },
       {
-        id: 4,
+        id: "TK1004",
         title: "Printer spooler service hanging on Accounting floor",
         description: "Network printer HP LaserJet 400 is queueing jobs but failing to output pages.",
         status: "resolved",
@@ -173,7 +173,7 @@ function getInitialMockState(): MockDbState {
         resolved_at: "2026-08-16 15:30:00",
       },
       {
-        id: 5,
+        id: "TK1005",
         title: "Upgrade RAM on development workstation #14",
         description: "Installed additional 32GB DDR5 memory modules for local virtualization workloads.",
         status: "closed",
@@ -189,14 +189,14 @@ function getInitialMockState(): MockDbState {
     comments: [
       {
         id: 1,
-        ticket_id: 2,
+        ticket_id: "TK1002",
         user_id: 2,
         comment: "I have requested approval from your team lead and will grant permissions once confirmed.",
         created_at: "2026-09-23 13:40:00",
       },
       {
         id: 2,
-        ticket_id: 3,
+        ticket_id: "TK1003",
         user_id: 2,
         comment: "MTU size adjustment in adapter settings resolved the packet loss issue.",
         created_at: "2026-09-22 10:00:00",
@@ -206,7 +206,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-1",
         type: "status_change",
-        ticket_id: 3,
+        ticket_id: "TK1003",
         ticket_title: "VPN client disconnection every 30 minutes",
         ticket_status: "resolved",
         ticket_priority: "urgent",
@@ -219,7 +219,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-2",
         type: "comment",
-        ticket_id: 3,
+        ticket_id: "TK1003",
         ticket_title: "VPN client disconnection every 30 minutes",
         ticket_status: "resolved",
         ticket_priority: "urgent",
@@ -232,7 +232,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-3",
         type: "comment",
-        ticket_id: 2,
+        ticket_id: "TK1002",
         ticket_title: "Request access to Production Logs dashboard",
         ticket_status: "in_progress",
         ticket_priority: "medium",
@@ -245,7 +245,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-4",
         type: "ticket_assigned",
-        ticket_id: 2,
+        ticket_id: "TK1002",
         ticket_title: "Request access to Production Logs dashboard",
         ticket_status: "in_progress",
         ticket_priority: "medium",
@@ -258,7 +258,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-5",
         type: "ticket_created",
-        ticket_id: 2,
+        ticket_id: "TK1002",
         ticket_title: "Request access to Production Logs dashboard",
         ticket_status: "in_progress",
         ticket_priority: "medium",
@@ -271,7 +271,7 @@ function getInitialMockState(): MockDbState {
       {
         id: "act-6",
         type: "ticket_created",
-        ticket_id: 1,
+        ticket_id: "TK1001",
         ticket_title: "Dual monitor setup not detected after docking station update",
         ticket_status: "open",
         ticket_priority: "high",
@@ -283,7 +283,6 @@ function getInitialMockState(): MockDbState {
       },
     ],
     nextUserId: 4,
-    nextTicketId: 6,
     nextCommentId: 3,
   };
 }
@@ -371,8 +370,8 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
 
   // 7. Ticket detail: SELECT t.id ... WHERE t.id = ?
   if (norm.startsWith("SELECT t.id, t.title") && norm.includes("WHERE t.id = ?")) {
-    const id = Number(params[0]);
-    const t = mockDb.tickets.find((item) => item.id === id);
+    const id = String(params[0]).trim();
+    const t = mockDb.tickets.find((item) => item.id.toUpperCase() === id.toUpperCase());
     if (!t) return [] as T[];
     const cat = mockDb.categories.find((c) => c.id === t.category_id);
     const cu = mockDb.users.find((u) => u.id === t.created_by);
@@ -420,17 +419,21 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
       const creatorId = Number(params[paramIdx++]);
       filtered = filtered.filter((t) => t.created_by === creatorId);
     }
-    if (norm.includes("(t.id = ? OR t.title LIKE ? OR t.description LIKE ?)") || norm.includes("(t.title LIKE ? OR t.description LIKE ?)")) {
-      let targetId: number | null = null;
-      if (norm.includes("t.id = ?")) {
-        targetId = Number(params[paramIdx++]);
+    if (
+      norm.includes("(t.id = ? OR t.title LIKE ? OR t.description LIKE ?)") ||
+      norm.includes("(t.id LIKE ? OR t.title LIKE ? OR t.description LIKE ?)") ||
+      norm.includes("(t.title LIKE ? OR t.description LIKE ?)")
+    ) {
+      let targetId: string | null = null;
+      if (norm.includes("t.id = ?") || norm.includes("t.id LIKE ?")) {
+        targetId = String(params[paramIdx++]).replace(/^%|%$/g, "").toUpperCase();
       }
       const searchPattern = String(params[paramIdx++]);
       paramIdx++; // skip duplicate %search% param for description
       const searchTerm = searchPattern.replace(/^%|%$/g, "").toLowerCase();
       filtered = filtered.filter(
         (t) =>
-          (targetId !== null && t.id === targetId) ||
+          (targetId !== null && (t.id.toUpperCase() === targetId || t.id.toUpperCase().includes(targetId))) ||
           t.title.toLowerCase().includes(searchTerm) ||
           t.description.toLowerCase().includes(searchTerm)
       );
@@ -478,16 +481,16 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
 
   // 9. SELECT id, created_by FROM tickets WHERE id = ?
   if (norm.includes("FROM tickets WHERE id = ?")) {
-    const id = Number(params[0]);
-    const t = mockDb.tickets.find((item) => item.id === id);
+    const id = String(params[0]).trim();
+    const t = mockDb.tickets.find((item) => item.id.toUpperCase() === id.toUpperCase());
     return t ? ([{ id: t.id, created_by: t.created_by }] as unknown as T[]) : ([] as T[]);
   }
 
   // 10. Comments list: SELECT tc.id ... FROM ticket_comments tc
   if (norm.includes("FROM ticket_comments tc")) {
-    const ticketId = Number(params[0]);
+    const ticketId = String(params[0]).trim();
     const comments = mockDb.comments
-      .filter((c) => c.ticket_id === ticketId)
+      .filter((c) => c.ticket_id.toUpperCase() === ticketId.toUpperCase())
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map((c) => {
         const u = mockDb.users.find((user) => user.id === c.user_id);
@@ -574,14 +577,33 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   // 1. Insert ticket
   if (norm.startsWith("INSERT INTO tickets")) {
-    const [title, description, priority, category_id, created_by] = params as [
-      string,
-      string,
-      TicketPriority,
-      number | null,
-      number
-    ];
-    const id = mockDb.nextTicketId++;
+    let id: string;
+    let title: string;
+    let description: string;
+    let priority: TicketPriority;
+    let category_id: number | null;
+    let created_by: number;
+
+    if (norm.includes("(id, title, description, priority, category_id, created_by, status)")) {
+      [id, title, description, priority, category_id, created_by] = params as [
+        string,
+        string,
+        string,
+        TicketPriority,
+        number | null,
+        number
+      ];
+    } else {
+      [title, description, priority, category_id, created_by] = params as [
+        string,
+        string,
+        TicketPriority,
+        number | null,
+        number
+      ];
+      id = generateTicketId();
+    }
+
     mockDb.tickets.unshift({
       id,
       title,
@@ -609,13 +631,13 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       details: `Created new ticket with ${priority} priority`,
       created_at: now,
     });
-    return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
+    return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
   }
 
   // 2. Claim / assign ticket
   if (norm.startsWith("UPDATE tickets SET assigned_to = ?")) {
-    const [userId, ticketId] = params as [number, number];
-    const ticket = mockDb.tickets.find((t) => t.id === ticketId);
+    const [userId, ticketId] = params as [number, string | number];
+    const ticket = mockDb.tickets.find((t) => t.id.toUpperCase() === String(ticketId).toUpperCase());
     if (ticket) {
       ticket.assigned_to = userId;
       if (ticket.status === "open") {
@@ -643,8 +665,8 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   // 3. Update ticket: UPDATE tickets SET ... WHERE id = ?
   if (norm.startsWith("UPDATE tickets SET")) {
-    const ticketId = Number(params[params.length - 1]);
-    const ticket = mockDb.tickets.find((t) => t.id === ticketId);
+    const ticketId = String(params[params.length - 1]).trim();
+    const ticket = mockDb.tickets.find((t) => t.id.toUpperCase() === ticketId.toUpperCase());
     if (!ticket) return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
 
     const oldStatus = ticket.status;
@@ -705,11 +727,11 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   // 4. Delete ticket: DELETE FROM tickets WHERE id = ?
   if (norm.startsWith("DELETE FROM tickets WHERE id = ?")) {
-    const id = Number(params[0]);
-    const idx = mockDb.tickets.findIndex((t) => t.id === id);
+    const id = String(params[0]).trim();
+    const idx = mockDb.tickets.findIndex((t) => t.id.toUpperCase() === id.toUpperCase());
     if (idx !== -1) {
       mockDb.tickets.splice(idx, 1);
-      mockDb.comments = mockDb.comments.filter((c) => c.ticket_id !== id);
+      mockDb.comments = mockDb.comments.filter((c) => c.ticket_id.toUpperCase() !== id.toUpperCase());
       return { insertId: 0, affectedRows: 1 } as mysql.ResultSetHeader;
     }
     return { insertId: 0, affectedRows: 0 } as mysql.ResultSetHeader;
@@ -717,22 +739,23 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
 
   // 5. Insert comment
   if (norm.startsWith("INSERT INTO ticket_comments")) {
-    const [ticketId, userId, comment] = params as [number, number, string];
+    const [ticketId, userId, comment] = params as [string | number, number, string];
     const id = mockDb.nextCommentId++;
+    const tId = String(ticketId).trim();
     mockDb.comments.push({
       id,
-      ticket_id: ticketId,
+      ticket_id: tId,
       user_id: userId,
       comment,
       created_at: now,
     });
-    const t = mockDb.tickets.find((item) => item.id === ticketId);
+    const t = mockDb.tickets.find((item) => item.id.toUpperCase() === tId.toUpperCase());
     const u = mockDb.users.find((user) => user.id === userId);
     mockDb.activities.unshift({
       id: `act-${Date.now()}`,
       type: "comment",
-      ticket_id: ticketId,
-      ticket_title: t ? t.title : `Ticket #${ticketId}`,
+      ticket_id: tId,
+      ticket_title: t ? t.title : `Ticket #${tId}`,
       ticket_status: t ? t.status : undefined,
       ticket_priority: t ? t.priority : undefined,
       user_id: userId,

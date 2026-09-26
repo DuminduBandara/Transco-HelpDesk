@@ -35,10 +35,10 @@ INSERT INTO categories (name) VALUES
   ('Hardware'), ('Software'), ('Network'), ('Access Request'), ('Other');
 
 -- ------------------------------------------------------------
--- Tickets
+-- Tickets (ID is 6 characters: 2 uppercase letters + 4 digits, e.g. TK1001)
 -- ------------------------------------------------------------
 CREATE TABLE tickets (
-  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id           VARCHAR(6)    NOT NULL PRIMARY KEY,
   title        VARCHAR(200)  NOT NULL,
   description  TEXT          NOT NULL,
   status       ENUM('open', 'in_progress', 'resolved', 'closed')
@@ -71,7 +71,7 @@ CREATE TABLE tickets (
 -- ------------------------------------------------------------
 CREATE TABLE ticket_comments (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  ticket_id   INT UNSIGNED NOT NULL,
+  ticket_id   VARCHAR(6)   NOT NULL,
   user_id     INT UNSIGNED NOT NULL,
   comment     TEXT         NOT NULL,
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -15,7 +15,7 @@ export interface User {
 }
 
 export interface Ticket {
-  id: number;
+  id: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -33,7 +33,7 @@ export interface Ticket {
 
 export interface TicketComment {
   id: number;
-  ticket_id: number;
+  ticket_id: string;
   user_id: number;
   user_name?: string;
   user_role?: Role;
@@ -55,7 +55,7 @@ export type ActivityType =
 export interface ActivityItem {
   id: string | number;
   type: ActivityType;
-  ticket_id: number;
+  ticket_id: string;
   ticket_title: string;
   ticket_status?: TicketStatus;
   ticket_priority?: TicketPriority;

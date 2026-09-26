@@ -496,7 +496,7 @@ export default function DashboardPage() {
             <Table size="medium">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, width: 70 }}>ID</TableCell>
+                  <TableCell sx={{ fontWeight: 600, width: 95 }}>ID</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Title</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 120 }}>Priority</TableCell>
@@ -517,7 +517,7 @@ export default function DashboardPage() {
                       "&:last-child td, &:last-child th": { border: 0 },
                     }}
                   >
-                    <TableCell sx={{ fontWeight: 500 }}>#{t.id}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: "primary.main" }}>#{t.id}</TableCell>
                     <TableCell>
                       <Link
                         href={`/tickets/${t.id}`}

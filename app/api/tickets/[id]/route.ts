@@ -4,7 +4,7 @@ import { query, execute } from "@/lib/db";
 import { updateTicketSchema } from "@/lib/validators";
 import type { Ticket } from "@/types";
 
-async function getTicketOr404(id: number) {
+async function getTicketOr404(id: string) {
   const rows = await query<Ticket>(
     `SELECT
        t.id, t.title, t.description, t.status, t.priority,
@@ -33,8 +33,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id)) {
+  const id = params.id.trim();
+  if (!id || id.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 
@@ -65,8 +65,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id)) {
+  const id = params.id.trim();
+  if (!id || id.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createTicketSchema, ticketQuerySchema } from "@/lib/validators";
+import { generateTicketId } from "@/lib/ticketId";
 import type { Ticket } from "@/types";
 
 // GET /api/tickets — list tickets, scoped by role, filterable, paginated.
@@ -36,17 +37,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (search) {
-    const cleanSearch = search.trim();
-    const idMatch = cleanSearch.replace(/^#/, "");
-    const isNumeric = /^\d+$/.test(idMatch);
-
-    if (isNumeric) {
-      where.push("(t.id = ? OR t.title LIKE ? OR t.description LIKE ?)");
-      params.push(parseInt(idMatch, 10), `%${cleanSearch}%`, `%${cleanSearch}%`);
-    } else {
-      where.push("(t.title LIKE ? OR t.description LIKE ?)");
-      params.push(`%${cleanSearch}%`, `%${cleanSearch}%`);
-    }
+    const cleanSearch = search.trim().replace(/^#/, "");
+    where.push("(t.id LIKE ? OR t.title LIKE ? OR t.description LIKE ?)");
+    params.push(`%${cleanSearch}%`, `%${cleanSearch}%`, `%${cleanSearch}%`);
   }
 
   if (status) {
@@ -110,11 +103,28 @@ export async function POST(req: NextRequest) {
   }
   const { title, description, priority, category_id } = parsed.data;
 
-  const result = await execute(
-    `INSERT INTO tickets (title, description, priority, category_id, created_by, status)
-     VALUES (?, ?, ?, ?, ?, 'open')`,
-    [title, description, priority, category_id ?? null, user.id]
+  // Auto-generate unique 6-character ticket ID (2 uppercase letters + 4 digits, e.g. TK1001, AB4820)
+  let ticketId = "";
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = generateTicketId();
+    const existing = await query<{ id: string }>(
+      "SELECT id FROM tickets WHERE id = ? LIMIT 1",
+      [candidate]
+    );
+    if (!existing || existing.length === 0) {
+      ticketId = candidate;
+      break;
+    }
+  }
+  if (!ticketId) {
+    ticketId = generateTicketId();
+  }
+
+  await execute(
+    `INSERT INTO tickets (id, title, description, priority, category_id, created_by, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'open')`,
+    [ticketId, title, description, priority, category_id ?? null, user.id]
   );
 
-  return NextResponse.json({ id: result.insertId }, { status: 201 });
+  return NextResponse.json({ id: ticketId }, { status: 201 });
 }

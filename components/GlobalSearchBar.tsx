@@ -93,7 +93,7 @@ export default function GlobalSearchBar() {
   }, [query]);
 
   const handleSelectTicket = useCallback(
-    (ticketId: number) => {
+    (ticketId: string | number) => {
       setOpen(false);
       router.push(`/tickets/${ticketId}`);
     },
@@ -114,15 +114,14 @@ export default function GlobalSearchBar() {
     } else if (e.key === "Enter") {
       e.preventDefault();
       const trimmed = query.trim();
-      const numericId = trimmed.replace(/^#/, "");
-      // If exact ID entered and matches a ticket or pure number, jump to ticket
-      if (/^\d+$/.test(numericId)) {
-        const idNum = parseInt(numericId, 10);
-        const exactMatch = results.find((t) => t.id === idNum);
-        if (exactMatch || results.length === 1) {
-          handleSelectTicket(exactMatch ? exactMatch.id : results[0].id);
-          return;
-        }
+      const cleanId = trimmed.replace(/^#/, "").toUpperCase();
+      // If exact ID entered and matches a ticket, jump directly
+      const exactMatch = results.find(
+        (t) => String(t.id).toUpperCase() === cleanId
+      );
+      if (exactMatch || results.length === 1) {
+        handleSelectTicket(exactMatch ? exactMatch.id : results[0].id);
+        return;
       }
       handleViewAllResults();
     }
@@ -134,8 +133,8 @@ export default function GlobalSearchBar() {
     inputRef.current?.focus();
   };
 
-  const numericQuery = query.trim().replace(/^#/, "");
-  const isPureNumber = /^\d+$/.test(numericQuery);
+  const cleanQuery = query.trim().replace(/^#/, "").toUpperCase();
+  const exactTicket = results.find((t) => t.id.toUpperCase() === cleanQuery);
   const showDropdown = open && query.trim().length > 0;
 
   return (
@@ -257,10 +256,10 @@ export default function GlobalSearchBar() {
               flexDirection: "column",
             }}
           >
-            {/* Direct Jump Option if user typed number or ID */}
-            {isPureNumber && (
+            {/* Direct Jump Option if user typed matching ID */}
+            {exactTicket && (
               <Box
-                onClick={() => handleSelectTicket(parseInt(numericQuery, 10))}
+                onClick={() => handleSelectTicket(exactTicket.id)}
                 sx={{
                   px: 2,
                   py: 1.25,
@@ -277,7 +276,7 @@ export default function GlobalSearchBar() {
                 <Stack direction="row" spacing={1} alignItems="center">
                   <ConfirmationNumberIcon sx={{ fontSize: 18, color: "primary.main" }} />
                   <Typography variant="body2" fontWeight={600} color="primary.main">
-                    Jump directly to Ticket #{numericQuery}
+                    Jump directly to Ticket #{exactTicket.id}
                   </Typography>
                 </Stack>
                 <ArrowForwardIcon sx={{ fontSize: 16, color: "primary.main" }} />

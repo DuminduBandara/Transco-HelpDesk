@@ -5,7 +5,7 @@ import { createCommentSchema } from "@/lib/validators";
 import type { Ticket, TicketComment } from "@/types";
 
 async function canAccessTicket(
-  ticketId: number,
+  ticketId: string,
   user: { id: number; role: string }
 ) {
   const rows = await query<Ticket>(
@@ -30,8 +30,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const ticketId = Number(params.id);
-  if (!Number.isInteger(ticketId)) {
+  const ticketId = params.id.trim();
+  if (!ticketId || ticketId.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 
@@ -66,8 +66,8 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const ticketId = Number(params.id);
-  if (!Number.isInteger(ticketId)) {
+  const ticketId = params.id.trim();
+  if (!ticketId || ticketId.length > 20) {
     return NextResponse.json({ error: "Invalid ticket id" }, { status: 400 });
   }
 

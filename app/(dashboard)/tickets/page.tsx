@@ -117,7 +117,16 @@ function TicketsContent() {
   };
 
   const columns: GridColDef<Ticket>[] = [
-    { field: "id", headerName: "ID", width: 70 },
+    {
+      field: "id",
+      headerName: "ID",
+      width: 105,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={600} color="primary.main">
+          #{params.value}
+        </Typography>
+      ),
+    },
     { field: "title", headerName: "Title", flex: 1, minWidth: 220 },
     {
       field: "status",
