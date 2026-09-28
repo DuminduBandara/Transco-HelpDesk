@@ -39,6 +39,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 
 import SessionTimeoutHandler from "@/components/SessionTimeoutHandler";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
@@ -123,6 +124,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             href: "/admin/users",
             icon: <PeopleAltOutlinedIcon />,
             active: pathname.startsWith("/admin/users"),
+          },
+          {
+            label: "Roles & Departments",
+            href: "/admin/settings",
+            icon: <ManageAccountsOutlinedIcon />,
+            active: pathname.startsWith("/admin/settings"),
           },
         ]
       : [];

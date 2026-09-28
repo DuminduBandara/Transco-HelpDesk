@@ -109,11 +109,12 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
+      // Only mutable fields (name, mobile_number, and passwords) are included in the payload
       const payload: Record<string, string | null> = {
         name: name.trim(),
-        department: department.trim(),
         mobile_number: mobileNumber.trim() || null,
       };
+      
       if (newPassword) {
         payload.current_password = currentPassword;
         payload.new_password = newPassword;
@@ -260,11 +261,10 @@ export default function ProfilePage() {
                 <TextField
                   label="Department"
                   fullWidth
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Operations, IT, Finance"
+                  disabled
+                  value={department || "—"}
                   size="small"
-                  helperText="Your organizational department"
+                  helperText="Your department (Managed by Administrator)"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

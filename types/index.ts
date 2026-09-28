@@ -1,4 +1,4 @@
-export type Role = "employee" | "agent" | "admin";
+export type Role = string;
 
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 
@@ -70,3 +70,17 @@ export interface ActivityItem {
   details: string;
   created_at: string;
 }
+
+export interface SystemRole {
+  id: number;
+  name: string;
+  description: string | null;
+  color_code: string;
+  created_at?: string;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+}
+
