@@ -6,17 +6,12 @@ declare global {
 }
 
 const DEFAULT_DEPARTMENTS = [
-  "IT",
-  "IT Support",
-  "Engineering",
-  "Operations",
-  "Finance",
-  "Human Resources",
-  "Marketing",
-  "Sales",
-  "Customer Service",
-  "Legal & Compliance",
-  "Executive",
+  "Tansco Travels",
+  "Transco Aviation",
+  "Transco Holdings",
+  "Transco Cargo",
+  "Transco Holidays",
+  "IT"
 ];
 
 // In-memory persistent cache for custom added/removed departments

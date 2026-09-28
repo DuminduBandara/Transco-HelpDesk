@@ -34,6 +34,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TuneIcon from "@mui/icons-material/Tune";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { User, Role } from "@/types";
+import { useSnackbar } from "notistack";
 
 const ROLE_COLORS: Record<Role, any> = {
   employee: "default",
@@ -49,6 +50,7 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
   // Delete user state
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -118,7 +120,8 @@ export default function AdminUsersPage() {
     setPassword("");
     setRole(user.role);
     setDepartment(user.department ?? "");
-    setIsActive(user.role === "admin" ? true : user.is_active);
+    // Ensure this is cast strictly to a boolean in case MySQL returned 1 or 0
+    setIsActive(user.role === "admin" ? true : Boolean(user.is_active));
     setError(null);
     setDialogOpen(true);
   }
@@ -142,14 +145,17 @@ export default function AdminUsersPage() {
 
       if (!res.ok) {
         setDeleteError(data.error || "Failed to delete user.");
+        enqueueSnackbar("Failed to delete user account.", { variant: "error" });
         return;
       }
 
       setDeleteConfirmOpen(false);
       setUserToDelete(null);
       loadUsers();
+      enqueueSnackbar("User account deleted successfully.", { variant: "success" });
     } catch {
       setDeleteError("An unexpected error occurred while deleting the user.");
+      enqueueSnackbar("An unexpected error occurred.", { variant: "error" });
     } finally {
       setDeleting(false);
     }
@@ -164,13 +170,17 @@ export default function AdminUsersPage() {
       const patch: Record<string, unknown> = {
         name: name.trim(),
         email: email.trim(),
-        mobile_number: mobileNumber.trim() || null,
         role,
-        department: department || null,
-        // Admin profiles are always active
-        is_active: role === "admin" ? true : isActive,
+        // Strictly cast to boolean to avoid Zod 400 Bad Request errors 
+        is_active: role === "admin" ? true : Boolean(isActive),
       };
+      
+      // Assign null if empty, preventing undefined variable errors
+      patch.mobile_number = mobileNumber.trim() || null;
+      patch.department = department || null;
+
       if (password) patch.password = password;
+
       res = await fetch(`/api/users/${editingUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -195,12 +205,34 @@ export default function AdminUsersPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to save user.");
+      let errMsg = data.error ?? "Failed to save user.";
+      
+      // Extract exact Zod validation details if the server rejected the shape of the data
+      if (data.details) {
+        const errorDetails = data.details.fieldErrors || data.details;
+        if (typeof errorDetails === "object" && !Array.isArray(errorDetails)) {
+          const detailStr = Object.entries(errorDetails)
+            .map(([field, err]) => `${field}: ${Array.isArray(err) ? err.join(", ") : err}`)
+            .join(" | ");
+          errMsg = `${errMsg} (${detailStr})`;
+        } else {
+          errMsg = `${errMsg} (${JSON.stringify(data.details)})`;
+        }
+      }
+
+      setError(errMsg);
+      enqueueSnackbar("Failed to save user details. See error message.", { variant: "error" });
       return;
     }
 
     setDialogOpen(false);
     loadUsers();
+    
+    // Trigger the slide-down success popup
+    enqueueSnackbar(
+      editingUser ? "User profile updated successfully!" : "New user account created successfully!", 
+      { variant: "success" }
+    );
   }
 
   async function handleAddDepartment(e: React.FormEvent) {
@@ -218,6 +250,7 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) {
         setDeptError(data.error || "Failed to add department");
+        enqueueSnackbar("Failed to add department.", { variant: "error" });
         return;
       }
       setDepartments(data.departments);
@@ -226,8 +259,10 @@ export default function AdminUsersPage() {
       if (!department) {
         setDepartment(newDeptName.trim());
       }
+      enqueueSnackbar(`Department "${newDeptName.trim()}" added successfully!`, { variant: "success" });
     } catch {
       setDeptError("Failed to add department. Please try again.");
+      enqueueSnackbar("Failed to add department.", { variant: "error" });
     } finally {
       setDeptActionLoading(false);
     }
@@ -245,14 +280,17 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) {
         setDeptError(data.error || "Failed to delete department");
+        enqueueSnackbar("Failed to delete department.", { variant: "error" });
         return;
       }
       setDepartments(data.departments);
       if (department === deptToRemove) {
         setDepartment("");
       }
+      enqueueSnackbar(`Department "${deptToRemove}" removed successfully!`, { variant: "success" });
     } catch {
       setDeptError("Failed to delete department.");
+      enqueueSnackbar("Failed to delete department.", { variant: "error" });
     } finally {
       setDeptActionLoading(false);
     }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import AuthProvider from "@/components/AuthProvider";
+import NotistackProvider from "@/components/NotistackProvider";
 
 export const metadata: Metadata = {
   title: "IT Help Desk",
@@ -16,7 +17,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <AuthProvider>
-          <ThemeRegistry>{children}</ThemeRegistry>
+          <ThemeRegistry>
+            <NotistackProvider>{children}</NotistackProvider>
+          </ThemeRegistry>
         </AuthProvider>
       </body>
     </html>

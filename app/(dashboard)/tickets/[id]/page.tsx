@@ -20,6 +20,7 @@ import {
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
 import type { Ticket, TicketComment } from "@/types";
+import { useSnackbar } from "notistack";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -38,6 +39,9 @@ export default function TicketDetailPage() {
   const [posting, setPosting] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Initialize the notistack hook
+  const { enqueueSnackbar } = useSnackbar();
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -53,7 +57,6 @@ export default function TicketDetailPage() {
     }
     if (!ticketRes.ok) {
       setError("Failed to load ticket.");
-      setLoading(false);
       return;
     }
 
@@ -80,21 +83,34 @@ export default function TicketDetailPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to update ticket.");
+      const errorMessage = data.error ?? "Failed to update ticket.";
+      setError(errorMessage);
+      enqueueSnackbar(errorMessage, { variant: "error" });
       return;
     }
     const data = await res.json();
     setTicket(data.ticket);
+
+    // Trigger specific success popups based on what was updated
+    if (patch.status) {
+      enqueueSnackbar(`Ticket status updated to ${patch.status.toUpperCase()}`, { variant: "success" });
+    } else if (patch.priority) {
+      enqueueSnackbar(`Ticket priority updated to ${patch.priority.toUpperCase()}`, { variant: "success" });
+    } else {
+      enqueueSnackbar("Ticket updated successfully", { variant: "success" });
+    }
   }
 
   async function claimTicket() {
     // Client-side authorization check before sending API request
     if (!session?.user) {
       setError("You must be logged in to assign tickets.");
+      enqueueSnackbar("You must be logged in to assign tickets.", { variant: "error" });
       return;
     }
     if (!isStaff) {
       setError("Unauthorized: Only IT staff (agents or administrators) are permitted to assign or claim tickets.");
+      enqueueSnackbar("Unauthorized: Only IT staff can claim tickets.", { variant: "error" });
       return;
     }
     if (!ticket) {
@@ -103,6 +119,7 @@ export default function TicketDetailPage() {
     }
     if (ticket.assigned_to) {
       setError("This ticket is already assigned to a team member.");
+      enqueueSnackbar("Ticket is already assigned.", { variant: "warning" });
       return;
     }
 
@@ -114,12 +131,16 @@ export default function TicketDetailPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to assign ticket.");
+        const errorMessage = data.error || "Failed to assign ticket.";
+        setError(errorMessage);
+        enqueueSnackbar(errorMessage, { variant: "error" });
       } else {
         load();
+        enqueueSnackbar("Ticket successfully assigned to you!", { variant: "success" });
       }
     } catch {
       setError("An unexpected error occurred while assigning ticket.");
+      enqueueSnackbar("An unexpected error occurred.", { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -129,15 +150,25 @@ export default function TicketDetailPage() {
     e.preventDefault();
     if (!newComment.trim()) return;
     setPosting(true);
-    const res = await fetch(`/api/tickets/${params.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment: newComment }),
-    });
-    setPosting(false);
-    if (res.ok) {
-      setNewComment("");
-      load();
+    
+    try {
+      const res = await fetch(`/api/tickets/${params.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: newComment }),
+      });
+      setPosting(false);
+      
+      if (res.ok) {
+        setNewComment("");
+        load();
+        enqueueSnackbar("Comment posted successfully!", { variant: "success" });
+      } else {
+        enqueueSnackbar("Failed to post comment. Please try again.", { variant: "error" });
+      }
+    } catch {
+      setPosting(false);
+      enqueueSnackbar("Network error while posting comment.", { variant: "error" });
     }
   }
 
