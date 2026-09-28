@@ -56,7 +56,7 @@ export const createUserSchema = z.object({
   email: z.string().trim().email(),
   mobile_number: z.string().trim().max(30).nullable().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: roleEnum.default("employee"),
+  role: z.string().min(1, "Role is required"),
   department: z.string().trim().max(120).nullable().optional(),
 });
 
@@ -65,7 +65,7 @@ export const updateUserSchema = z
     name: z.string().trim().min(2).max(120).optional(),
     email: z.string().trim().email("Invalid email address").optional(),
     mobile_number: z.string().trim().max(30).nullable().optional(),
-    role: roleEnum.optional(),
+    role: z.string().optional(),
     department: z.string().trim().max(120).nullable().optional(),
     is_active: z.boolean().optional(),
     password: z.string().min(8).optional(),

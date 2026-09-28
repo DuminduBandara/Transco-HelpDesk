@@ -14,6 +14,7 @@ import {
   Alert,
 } from "@mui/material";
 import type { Category } from "@/types";
+import { useSnackbar } from "notistack";
 
 export default function NewTicketPage() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function NewTicketPage() {
   const [categoryId, setCategoryId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Initialize the notistack hook
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     fetch("/api/categories")
@@ -51,16 +55,23 @@ export default function NewTicketPage() {
       if (!res.ok) {
         setSubmitting(false);
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Something went wrong. Please try again.");
+        const errorMessage = data.error ?? "Something went wrong. Please try again.";
+        setError(errorMessage);
+        enqueueSnackbar(errorMessage, { variant: "error" });
         return;
       }
 
       const data = await res.json();
+      
+      // Trigger the slide-down success popup
+      enqueueSnackbar("Ticket submitted successfully!", { variant: "success" });
+      
       router.push(`/tickets/${data.id}`);
       router.refresh();
     } catch {
       setSubmitting(false);
       setError("Network or submission error. Please try again.");
+      enqueueSnackbar("Network or submission error. Please try again.", { variant: "error" });
     }
   }
 

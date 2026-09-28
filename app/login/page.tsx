@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -13,6 +14,7 @@ import {
   Stack,
 } from "@mui/material";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import { useSnackbar } from "notistack";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const [timeoutNotice, setTimeoutNotice] = useState(false);
   const [loading, setLoading] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     emailInputRef.current?.focus();
@@ -48,8 +51,12 @@ export default function LoginPage() {
 
     if (result?.error) {
       setError("Invalid email or password. Please check your credentials.");
+      enqueueSnackbar("Login failed. Please check your credentials.", { variant: "error" });
       return;
     }
+
+    // Trigger the notistack success popup
+    enqueueSnackbar("Logged in successfully!", { variant: "success" });
 
     let target = "/dashboard";
     if (typeof window !== "undefined") {

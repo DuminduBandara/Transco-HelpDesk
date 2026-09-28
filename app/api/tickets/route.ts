@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createTicketSchema, ticketQuerySchema } from "@/lib/validators";
 import { generateTicketId } from "@/lib/ticketId";
+import { sendEmail } from '@/lib/email';
 import type { Ticket } from "@/types";
 
 // GET /api/tickets — list tickets, scoped by role, filterable, paginated.
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
   }
   const { title, description, priority, category_id } = parsed.data;
 
-  // Auto-generate unique 6-character ticket ID (2 uppercase letters + 4 digits, e.g. TK1001, AB4820)
+  // Auto-generate unique 6-character ticket ID (2 uppercase letters + 4 digits)
   let ticketId = "";
   for (let attempt = 0; attempt < 10; attempt++) {
     const candidate = generateTicketId();
@@ -153,6 +154,57 @@ export async function POST(req: NextRequest) {
      VALUES (?, ?, ?, ?, ?, ?, 'open')`,
     [ticketId, title, description, priority, validCategoryId, creatorId]
   );
+
+  // --- EMAIL NOTIFICATION TRIGGER ---
+  try {
+    // 1. Notify the User who created the ticket
+    const userEmailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h2 style="color: #0056b3;">Ticket Submitted Successfully: #${ticketId}</h2>
+        <p>Hi ${user.name},</p>
+        <p>We have received your ticket and our team will review it shortly. Here are the details you submitted:</p>
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">${title}</h3>
+          <p style="margin-bottom: 0; white-space: pre-wrap;">${description}</p>
+          <br/>
+          <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${priority}</span></p>
+        </div>
+        <p>We will notify you via email when there is an update to your ticket status.</p>
+      </div>
+    `;
+    await sendEmail(user.email, `Ticket Submitted: #${ticketId} - ${title}`, userEmailHtml);
+
+    // 2. Fetch all active admins to notify them of the new ticket
+    const admins = await query<{ email: string }>(
+      "SELECT email FROM users WHERE role = 'admin' AND is_active = 1"
+    );
+
+    if (admins && admins.length > 0) {
+      const adminEmailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+          <h2 style="color: #0056b3;">New Ticket Created: #${ticketId}</h2>
+          <p>A new ticket has been submitted by <strong>${user.name}</strong> (${user.email}).</p>
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">${title}</h3>
+            <p style="margin-bottom: 0; white-space: pre-wrap;">${description}</p>
+            <br/>
+            <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${priority}</span></p>
+          </div>
+          <p>Please log in to the Transco HelpDesk to review and assign this ticket.</p>
+        </div>
+      `;
+
+      // Send emails concurrently to all admins
+      await Promise.all(
+        admins.map(admin => 
+          sendEmail(admin.email, `New Ticket Alert: #${ticketId} - ${title}`, adminEmailHtml)
+        )
+      );
+    }
+  } catch (error) {
+    console.error("Failed to send new ticket notifications:", error);
+  }
+  // ----------------------------------
 
   return NextResponse.json({ id: ticketId }, { status: 201 });
 }

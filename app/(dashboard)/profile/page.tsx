@@ -27,10 +27,12 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import { useSnackbar } from "notistack";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { data: session, update } = useSession();
+  const { enqueueSnackbar } = useSnackbar();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,31 +85,36 @@ export default function ProfilePage() {
 
     if (!name.trim()) {
       setError("Name cannot be empty.");
+      enqueueSnackbar("Name cannot be empty.", { variant: "error" });
       return;
     }
 
     if (newPassword) {
       if (newPassword.length < 6) {
         setError("New password must be at least 6 characters.");
+        enqueueSnackbar("New password must be at least 6 characters.", { variant: "error" });
         return;
       }
       if (newPassword !== confirmPassword) {
         setError("New password and confirmation do not match.");
+        enqueueSnackbar("New password and confirmation do not match.", { variant: "error" });
         return;
       }
       if (!currentPassword) {
         setError("Please enter your current password to set a new password.");
+        enqueueSnackbar("Please enter your current password.", { variant: "error" });
         return;
       }
     }
 
     setSaving(true);
     try {
+      // Only mutable fields (name, mobile_number, and passwords) are included in the payload
       const payload: Record<string, string | null> = {
         name: name.trim(),
-        department: department.trim(),
         mobile_number: mobileNumber.trim() || null,
       };
+      
       if (newPassword) {
         payload.current_password = currentPassword;
         payload.new_password = newPassword;
@@ -122,10 +129,13 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Failed to update profile.");
+        enqueueSnackbar(data.error || "Failed to update profile.", { variant: "error" });
         return;
       }
 
       setSuccess("Your profile has been successfully updated!");
+      enqueueSnackbar("Profile updated successfully!", { variant: "success" });
+      
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -136,6 +146,7 @@ export default function ProfilePage() {
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      enqueueSnackbar("An unexpected error occurred. Please try again.", { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -250,11 +261,10 @@ export default function ProfilePage() {
                 <TextField
                   label="Department"
                   fullWidth
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Operations, IT, Finance"
+                  disabled
+                  value={department || "—"}
                   size="small"
-                  helperText="Your organizational department"
+                  helperText="Your department (Managed by Administrator)"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

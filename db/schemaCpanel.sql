@@ -101,3 +101,23 @@ INSERT INTO users (name, email, password_hash, role, department) VALUES
   ('John Employee', 'employee@company.com',
    '$2a$10$BoD201yFwN20cSyVbZern.jSqdCnaGyMJ/vBfNum5xQmzKUlMDGra',
    'employee', 'Operations');
+
+   -- Create the new roles table
+CREATE TABLE IF NOT EXISTS roles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) UNIQUE NOT NULL,
+  description VARCHAR(255),
+  color_code VARCHAR(20) DEFAULT 'default',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert core roles so you don't lose admin access
+INSERT IGNORE INTO roles (name, description, color_code) VALUES 
+('admin', 'Administrator with full system access', 'secondary'),
+('agent', 'IT Support Staff for handling tickets', 'info'),
+('employee', 'Standard user who can submit tickets', 'default');
+
+-- Modify the users table to allow dynamic roles (if it was previously an ENUM)
+-- Also ensuring the department column is a standard VARCHAR if it isn't already
+ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'employee';
+ALTER TABLE users MODIFY COLUMN department VARCHAR(100) NULL;

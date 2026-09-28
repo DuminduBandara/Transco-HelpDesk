@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createUserSchema } from "@/lib/validators";
+import { sendEmail } from '@/lib/email';
 import type { User } from "@/types";
 
 // GET /api/users — admin only (also used to populate "assign to" dropdowns
@@ -90,6 +91,29 @@ export async function POST(req: NextRequest) {
     "INSERT INTO users (name, email, mobile_number, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)",
     [name, email, mobile_number?.trim() || null, password_hash, role, department ?? null]
   );
+
+  // --- EMAIL INVITATION TRIGGER ---
+  // Send the invitation email to ALL newly created users
+  try {
+    const emailHtml = `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h2 style="color: #0056b3;">Welcome to Transco HelpDesk, ${name}!</h2>
+        <p>An administrator has created a new account for you.</p>
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 0 0 10px 0;"><strong>Login Email:</strong> ${email}</p>
+          <p style="margin: 0;"><strong>Temporary Password:</strong> ${password}</p>
+          <p style="margin: 10px 0 0 0;"><strong>Role:</strong> <span style="text-transform: capitalize;">${role}</span></p>
+        </div>
+        <p>Please log in and navigate to your profile to change your password immediately.</p>
+      </div>
+    `;
+    
+    await sendEmail(email, 'Your Transco HelpDesk Account Invitation', emailHtml);
+  } catch (error) {
+    console.error("Failed to send welcome email:", error);
+    // User is created successfully even if email fails
+  }
+  // --------------------------------
 
   return NextResponse.json({ id: result.insertId }, { status: 201 });
 }

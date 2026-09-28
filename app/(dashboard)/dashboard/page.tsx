@@ -126,7 +126,8 @@ export default function DashboardPage() {
   const fetchActivities = useCallback(async () => {
     setActivitiesLoading(true);
     try {
-      const res = await fetch("/api/activities?limit=15");
+      // Changed limit from 15 to 10
+      const res = await fetch("/api/activities?limit=10");
       const data = await res.json();
       setActivities(data.activities ?? []);
     } catch (err) {
@@ -142,10 +143,12 @@ export default function DashboardPage() {
       if (!isPolling) setTicketsRefreshing(true);
       try {
         if (role === "employee") {
+          // Keep fetching 100 to calculate correct stats for the user, 
+          // but limit the displayed table rows to exactly 10.
           const res = await fetch("/api/tickets?pageSize=100");
           const data = await res.json();
           const tickets: Ticket[] = data.tickets ?? [];
-          setRecentTickets(tickets.slice(0, 6));
+          setRecentTickets(tickets.slice(0, 10)); // Changed from 6 to 10
 
           const counts: Record<string, number> = {};
           const pCounts: Record<string, number> = {};
@@ -160,9 +163,10 @@ export default function DashboardPage() {
             Object.entries(pCounts).map(([priority, count]) => ({ priority, count }))
           );
         } else {
+          // For admins/agents, database calculates stats directly, so we just request 10 tickets
           const [statsRes, ticketsRes] = await Promise.all([
             fetch("/api/stats"),
-            fetch("/api/tickets?pageSize=6"),
+            fetch("/api/tickets?pageSize=10"), // Changed from 6 to 10
           ]);
           const statsData = await statsRes.json();
           const ticketsData = await ticketsRes.json();
@@ -673,4 +677,3 @@ export default function DashboardPage() {
     </Box>
   );
 }
-
