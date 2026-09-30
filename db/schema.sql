@@ -20,11 +20,15 @@ CREATE TABLE users (
   password_hash VARCHAR(255)  NOT NULL,
   role          ENUM('employee', 'agent', 'admin') NOT NULL DEFAULT 'employee',
   department    VARCHAR(120)  NULL,
-  is_active     TINYINT(1)    NOT NULL DEFAULT 1,
-  created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                              ON UPDATE CURRENT_TIMESTAMP
+  is_active            TINYINT(1)    NOT NULL DEFAULT 1,
+  must_change_password TINYINT(1)    NOT NULL DEFAULT 0,
+  created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                               ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+-- Note for existing databases:
+-- ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0;
 
 -- ------------------------------------------------------------
 -- Categories (lookup table — kept editable without code changes)

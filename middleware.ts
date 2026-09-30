@@ -4,7 +4,22 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
-    const role = req.nextauth.token?.role;
+    const token = req.nextauth.token;
+    const role = token?.role;
+    const mustChangePassword = Boolean(token?.mustChangePassword);
+
+    // If user has a temporary password, force them to /first-login
+    if (mustChangePassword) {
+      if (pathname !== "/first-login") {
+        return NextResponse.redirect(new URL("/first-login", req.url));
+      }
+      return NextResponse.next();
+    }
+
+    // If user already changed their password, prevent accessing /first-login
+    if (pathname === "/first-login") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
 
     // Admin-only section
     if (pathname.startsWith("/admin") && role !== "admin") {
@@ -29,5 +44,11 @@ export default withAuth(
 // Protect everything under the dashboard route group and the admin section.
 // Login page and API auth routes are intentionally excluded.
 export const config = {
-  matcher: ["/dashboard/:path*", "/tickets/:path*", "/admin/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/tickets/:path*",
+    "/admin/:path*",
+    "/profile/:path*",
+    "/first-login",
+  ],
 };

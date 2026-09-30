@@ -58,11 +58,25 @@ export default function LoginPage() {
     // Trigger the notistack success popup
     enqueueSnackbar("Logged in successfully!", { variant: "success" });
 
+    // Check if user is logging in with a temporary password
+    try {
+      const sessionRes = await fetch("/api/auth/session");
+      const sessionData = await sessionRes.json();
+      if (sessionData?.user?.mustChangePassword) {
+        enqueueSnackbar("First-time login: Please set your new permanent password.", { variant: "info" });
+        router.push("/first-login");
+        router.refresh();
+        return;
+      }
+    } catch {
+      // Fallback if session fetch fails, middleware will enforce /first-login
+    }
+
     let target = "/dashboard";
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const callback = params.get("callbackUrl");
-      if (callback && callback.startsWith("/") && !callback.startsWith("//")) {
+      if (callback && callback.startsWith("/") && !callback.startsWith("//") && callback !== "/first-login") {
         target = callback;
       }
     }

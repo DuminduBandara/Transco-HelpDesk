@@ -103,7 +103,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       active: pathname === "/dashboard",
     },
     {
-      label: "Tickets",
+      label: role === "admin" ? "All Tickets" : "My Tickets",
       href: "/tickets",
       icon: <ConfirmationNumberOutlinedIcon />,
       active: pathname.startsWith("/tickets") && pathname !== "/tickets/new",

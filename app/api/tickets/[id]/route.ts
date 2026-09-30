@@ -44,9 +44,9 @@ export async function GET(
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  // Employees may only view their own tickets.
-  if (user.role === "employee" && ticket.created_by !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Only admins can view any ticket. Non-admin users may only view tickets they created.
+  if (user.role !== "admin" && ticket.created_by !== user.id) {
+    return NextResponse.json({ error: "Forbidden: You may only view tickets you submitted" }, { status: 403 });
   }
 
   // Strict privacy rule: Do not reveal admin mobile numbers to non-admins

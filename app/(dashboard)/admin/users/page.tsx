@@ -21,12 +21,19 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
+  InputAdornment,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import CheckIcon from "@mui/icons-material/Check";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import type { User, Role, SystemRole } from "@/types";
 import { useSnackbar } from "notistack";
 
@@ -35,6 +42,26 @@ const ROLE_COLORS: Record<string, any> = {
   agent: "info",
   admin: "secondary",
 };
+
+function generateTemporaryPassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const specials = "!@#$%&*";
+  const all = upper + lower + digits + specials;
+
+  let pass = "";
+  pass += upper[Math.floor(Math.random() * upper.length)];
+  pass += lower[Math.floor(Math.random() * lower.length)];
+  pass += digits[Math.floor(Math.random() * digits.length)];
+  pass += specials[Math.floor(Math.random() * specials.length)];
+
+  for (let i = 0; i < 6; i++) {
+    pass += all[Math.floor(Math.random() * all.length)];
+  }
+
+  return pass.split("").sort(() => 0.5 - Math.random()).join("");
+}
 
 export default function AdminUsersPage() {
   const { data: session } = useSession();
@@ -45,6 +72,17 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+
+  // Temporary credentials popup state
+  const [createdUserCredentials, setCreatedUserCredentials] = useState<{
+    name: string;
+    email: string;
+    temporaryPassword: string;
+    role: string;
+  } | null>(null);
+  const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Delete user state
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -97,13 +135,25 @@ export default function AdminUsersPage() {
     setName("");
     setEmail("");
     setMobileNumber("");
-    setPassword("");
+    setPassword(generateTemporaryPassword());
+    setShowCreatePassword(true);
     setRole("employee");
     setDepartment(departments[0] || "");
     setIsActive(true);
     setError(null);
     setDialogOpen(true);
   }
+
+  const handleCopyCredentials = () => {
+    if (!createdUserCredentials) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const loginUrl = `${origin}/login`;
+    const text = `Transco HelpDesk - Account Credentials\nName: ${createdUserCredentials.name}\nUsername / Email: ${createdUserCredentials.email}\nTemporary Password: ${createdUserCredentials.temporaryPassword}\nLogin URL: ${loginUrl}\n(You will be required to create your own permanent password on your first login.)`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    enqueueSnackbar("Credentials copied to clipboard!", { variant: "success" });
+    setTimeout(() => setCopied(false), 3000);
+  };
 
   function openEditDialog(user: User) {
     setEditingUser(user);
@@ -213,7 +263,18 @@ export default function AdminUsersPage() {
 
     setDialogOpen(false);
     loadData();
-    enqueueSnackbar(editingUser ? "User profile updated!" : "User account created!", { variant: "success" });
+    if (!editingUser) {
+      setCreatedUserCredentials({
+        name: name.trim(),
+        email: email.trim(),
+        temporaryPassword: password,
+        role,
+      });
+      setCredentialsModalOpen(true);
+      enqueueSnackbar("User account created with temporary credentials!", { variant: "success" });
+    } else {
+      enqueueSnackbar("User profile updated!", { variant: "success" });
+    }
   }
 
   const currentAdminEmail = session?.user?.email?.toLowerCase();
@@ -262,15 +323,30 @@ export default function AdminUsersPage() {
     },
     {
       field: "is_active",
-      headerName: "Active",
-      width: 120,
+      headerName: "Status",
+      width: 175,
       align: "center",
       headerAlign: "center",
       renderCell: (params) => {
-        if (params.row.role === "admin") {
-          return <Chip label="Active" size="small" color="success" variant="outlined" sx={{ fontWeight: 600 }} />;
+        const isActive = Boolean(params.row.is_active);
+        const mustChange = Boolean(params.row.must_change_password);
+        if (!isActive && params.row.role !== "admin") {
+          return <Chip label="Disabled" size="small" color="default" />;
         }
-        return <Chip label={params.value ? "Active" : "Disabled"} size="small" color={params.value ? "success" : "default"} />;
+        if (mustChange) {
+          return (
+            <Tooltip title="Temporary password active. User will set their permanent password upon first login.">
+              <Chip
+                label="Pending 1st Login"
+                size="small"
+                color="warning"
+                variant="outlined"
+                sx={{ fontWeight: 600, fontSize: "0.68rem" }}
+              />
+            </Tooltip>
+          );
+        }
+        return <Chip label="Active" size="small" color="success" variant="outlined" sx={{ fontWeight: 600 }} />;
       },
     },
     {
@@ -362,7 +438,51 @@ export default function AdminUsersPage() {
             <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth required size="small" />
             <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth required size="small" helperText={editingUser ? "Admin can change this user's email address" : undefined} />
             <TextField label="Mobile Number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="e.g. +1 (555) 019-2834" fullWidth size="small" helperText={role === "admin" ? "🔒 Admin mobile numbers are hidden from non-admin users" : "User's contact mobile number"} />
-            <TextField label={editingUser ? "New Password (optional)" : "Password"} type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth required={!editingUser} helperText={editingUser ? "Leave blank to keep existing password" : "Minimum 8 characters"} size="small" />
+            {editingUser ? (
+              <TextField
+                label="Reset Password (optional)"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                fullWidth
+                helperText="Leave blank to keep existing. If reset, user will be prompted to create a new password on next login."
+                size="small"
+              />
+            ) : (
+              <TextField
+                label="Temporary Password"
+                type={showCreatePassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                fullWidth
+                required
+                size="small"
+                helperText="Auto-generated or custom. User must change this on first login."
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Tooltip title="Generate Random Temporary Password">
+                        <IconButton
+                          size="small"
+                          onClick={() => setPassword(generateTemporaryPassword())}
+                          edge="end"
+                          sx={{ mr: 0.5 }}
+                        >
+                          <AutorenewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <IconButton
+                        size="small"
+                        onClick={() => setShowCreatePassword((prev) => !prev)}
+                        edge="end"
+                      >
+                        {showCreatePassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            )}
             
             <TextField select label="Role" value={role} onChange={(e) => { const nextRole = e.target.value as Role; setRole(nextRole); if (nextRole === "admin") setIsActive(true); }} fullWidth size="small">
               {availableRoles.map((r) => (
@@ -417,6 +537,104 @@ export default function AdminUsersPage() {
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>Cancel</Button>
           <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={deleting}>{deleting ? "Deleting..." : "Confirm Delete"}</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Newly Created User Credentials Modal */}
+      <Dialog
+        open={credentialsModalOpen}
+        onClose={() => setCredentialsModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 1 }}>
+          <VpnKeyIcon color="primary" /> Login Credentials Generated
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            The new account has been created. A temporary password was assigned and an invitation email was dispatched.
+          </Typography>
+
+          {createdUserCredentials && (
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1.5, mb: 2 }}>
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Full Name
+                  </Typography>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {createdUserCredentials.name}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Username / Login Email
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+                    {createdUserCredentials.email}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Temporary Password
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "inline-block",
+                      bgcolor: "primary.50",
+                      border: "1px solid",
+                      borderColor: "primary.200",
+                      px: 1.2,
+                      py: 0.5,
+                      borderRadius: 1,
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      fontSize: "0.95rem",
+                      color: "primary.dark",
+                      mt: 0.3,
+                    }}
+                  >
+                    {createdUserCredentials.temporaryPassword}
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Assigned Role
+                  </Typography>
+                  <Chip
+                    label={createdUserCredentials.role.toUpperCase()}
+                    size="small"
+                    color={systemRoles.find((r) => r.name === createdUserCredentials.role)?.color_code || ROLE_COLORS[createdUserCredentials.role] || "default"}
+                    sx={{ mt: 0.3, height: 20, fontSize: "0.68rem" }}
+                  />
+                </Box>
+              </Stack>
+            </Paper>
+          )}
+
+          <Alert severity="warning" sx={{ mb: 1.5, fontSize: "0.82rem" }}>
+            <strong>Security Notice:</strong> The user will be automatically prompted to create their own permanent password upon their first login.
+          </Alert>
+          <Typography variant="caption" color="text.secondary" display="block">
+            You can copy these credentials and share them directly with the user in case they do not receive the email.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, justifyContent: "space-between" }}>
+          <Button
+            variant="outlined"
+            startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+            onClick={handleCopyCredentials}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            {copied ? "Copied!" : "Copy Credentials"}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => setCredentialsModalOpen(false)}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Done
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

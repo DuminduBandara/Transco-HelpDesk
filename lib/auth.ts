@@ -11,6 +11,7 @@ interface DbUserRow {
   password_hash: string;
   role: Role;
   is_active: number;
+  must_change_password?: number;
 }
 
 export const authOptions: AuthOptions = {
@@ -30,7 +31,7 @@ export const authOptions: AuthOptions = {
 
         const email = credentials.email.trim().toLowerCase();
         const rows = await query<DbUserRow>(
-          "SELECT id, name, email, password_hash, role, is_active FROM users WHERE LOWER(email) = ? LIMIT 1",
+          "SELECT id, name, email, password_hash, role, is_active, must_change_password FROM users WHERE LOWER(email) = ? LIMIT 1",
           [email]
         );
         const user = rows[0];
@@ -47,15 +48,20 @@ export const authOptions: AuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          mustChangePassword: Boolean(user.must_change_password),
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+        token.mustChangePassword = Boolean((user as any).mustChangePassword);
+      }
+      if (trigger === "update" && session?.mustChangePassword !== undefined) {
+        token.mustChangePassword = Boolean(session.mustChangePassword);
       }
       return token;
     },
@@ -63,6 +69,7 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).mustChangePassword = Boolean(token.mustChangePassword);
       }
       return session;
     },
@@ -82,6 +89,7 @@ export async function getCurrentUser() {
     name: session.user.name!,
     email: session.user.email!,
     role: (session.user as any).role as Role,
+    mustChangePassword: Boolean((session.user as any).mustChangePassword),
   };
 }
 

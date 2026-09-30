@@ -124,9 +124,9 @@ export default function DashboardPage() {
   } | null>(null);
 
   const fetchActivities = useCallback(async () => {
+    if (role !== "admin") return;
     setActivitiesLoading(true);
     try {
-      // Changed limit from 15 to 10
       const res = await fetch("/api/activities?limit=10");
       const data = await res.json();
       setActivities(data.activities ?? []);
@@ -135,20 +135,19 @@ export default function DashboardPage() {
     } finally {
       setActivitiesLoading(false);
     }
-  }, []);
+  }, [role]);
 
   const fetchLatestTickets = useCallback(
     async (isPolling = false) => {
       if (!role) return;
       if (!isPolling) setTicketsRefreshing(true);
       try {
-        if (role === "employee") {
-          // Keep fetching 100 to calculate correct stats for the user, 
-          // but limit the displayed table rows to exactly 10.
+        if (role !== "admin") {
+          // For all non-admin users (staff, agents, employees), fetch only their own submitted tickets
           const res = await fetch("/api/tickets?pageSize=100");
           const data = await res.json();
           const tickets: Ticket[] = data.tickets ?? [];
-          setRecentTickets(tickets.slice(0, 10)); // Changed from 6 to 10
+          setRecentTickets(tickets.slice(0, 10));
 
           const counts: Record<string, number> = {};
           const pCounts: Record<string, number> = {};
@@ -163,10 +162,10 @@ export default function DashboardPage() {
             Object.entries(pCounts).map(([priority, count]) => ({ priority, count }))
           );
         } else {
-          // For admins/agents, database calculates stats directly, so we just request 10 tickets
+          // For admins only: platform-wide stats and latest 10 tickets
           const [statsRes, ticketsRes] = await Promise.all([
             fetch("/api/stats"),
-            fetch("/api/tickets?pageSize=10"), // Changed from 6 to 10
+            fetch("/api/tickets?pageSize=10"),
           ]);
           const statsData = await statsRes.json();
           const ticketsData = await ticketsRes.json();
@@ -192,10 +191,11 @@ export default function DashboardPage() {
     async function initialLoad() {
       setLoading(true);
       try {
-        await Promise.all([
-          fetchLatestTickets(false),
-          fetchActivities(),
-        ]);
+        const loadJobs: Promise<any>[] = [fetchLatestTickets(false)];
+        if (role === "admin") {
+          loadJobs.push(fetchActivities());
+        }
+        await Promise.all(loadJobs);
       } finally {
         setLoading(false);
       }
@@ -286,7 +286,9 @@ export default function DashboardPage() {
             Welcome back, {session?.user?.name?.split(" ")[0]}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Overview of support requests and ticketing activity
+            {role === "admin"
+              ? "Platform-wide overview of support requests and ticketing activity"
+              : "Overview of your submitted support requests and status"}
           </Typography>
         </Box>
         <Button component={Link} href="/tickets/new" variant="contained">
@@ -337,7 +339,7 @@ export default function DashboardPage() {
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          {role === "employee" ? (
+          {role !== "admin" ? (
             <StatCard
               icon={<ConfirmationNumberIcon />}
               label="Closed"
@@ -355,81 +357,83 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Priority Distribution Chart Card */}
-      <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          spacing={1.5}
-          sx={{ mb: 2 }}
-        >
-          <Box>
-            <Typography variant="h6" fontWeight={600}>
-              Priority Distribution
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Ticket workload breakdown by severity to identify urgent requests
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            {chartData.map((item) => (
-              <Box
-                key={item.priority}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.75,
-                  px: 1.5,
-                  py: 0.5,
-                  bgcolor: "action.hover",
-                  borderRadius: 1.5,
-                }}
-              >
+      {/* Priority Distribution Chart Card - Admin Only */}
+      {role === "admin" && (
+        <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            spacing={1.5}
+            sx={{ mb: 2 }}
+          >
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                Priority Distribution
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ticket workload breakdown by severity to identify urgent requests
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {chartData.map((item) => (
                 <Box
+                  key={item.priority}
                   sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    bgcolor: item.color,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: "action.hover",
+                    borderRadius: 1.5,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: item.color,
+                    }}
+                  />
+                  <Typography variant="caption" fontWeight={600}>
+                    {item.priority}:
+                  </Typography>
+                  <Typography variant="caption" fontWeight={700} color={item.color}>
+                    {item.count}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Box sx={{ width: "100%", height: 240, pt: 1 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 10, right: 20, left: -10, bottom: 5 }}
+              >
+                <XAxis dataKey="priority" tickLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} />
+                <Tooltip
+                  formatter={(val: any) => [`${val ?? 0} Tickets`, "Count"]}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "1px solid #e0e0e0",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                   }}
                 />
-                <Typography variant="caption" fontWeight={600}>
-                  {item.priority}:
-                </Typography>
-                <Typography variant="caption" fontWeight={700} color={item.color}>
-                  {item.count}
-                </Typography>
-              </Box>
-            ))}
-          </Stack>
-        </Stack>
-
-        <Box sx={{ width: "100%", height: 240, pt: 1 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 10, right: 20, left: -10, bottom: 5 }}
-            >
-              <XAxis dataKey="priority" tickLine={false} />
-              <YAxis allowDecimals={false} tickLine={false} />
-              <Tooltip
-                formatter={(val: any) => [`${val ?? 0} Tickets`, "Count"]}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #e0e0e0",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                }}
-              />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Box>
-      </Paper>
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
+      )}
 
       {/* Admin Monthly Report Download Card */}
       {role === "admin" && (
@@ -507,14 +511,16 @@ export default function DashboardPage() {
         </Paper>
       )}
 
-      {/* Activity Feed Section */}
-      <Box sx={{ mb: 4 }}>
-        <ActivityFeed
-          activities={activities}
-          loading={activitiesLoading}
-          onRefresh={fetchActivities}
-        />
-      </Box>
+      {/* Activity Feed Section - Admin Only */}
+      {role === "admin" && (
+        <Box sx={{ mb: 4 }}>
+          <ActivityFeed
+            activities={activities}
+            loading={activitiesLoading}
+            onRefresh={fetchActivities}
+          />
+        </Box>
+      )}
 
       {/* Latest / Recent Tickets Section */}
       <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
@@ -556,7 +562,9 @@ export default function DashboardPage() {
               />
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Most recent support tickets submitted across the platform {lastUpdated && `(Last updated: ${lastUpdated.toLocaleTimeString()})`}
+              {role === "admin"
+                ? `Most recent support tickets submitted across the platform ${lastUpdated && `(Last updated: ${lastUpdated.toLocaleTimeString()})`}`
+                : `Your recently submitted support requests ${lastUpdated && `(Last updated: ${lastUpdated.toLocaleTimeString()})`}`}
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center">
@@ -587,7 +595,7 @@ export default function DashboardPage() {
               endIcon={<ArrowForwardIcon />}
               size="small"
             >
-              View All Tickets
+              {role === "admin" ? "View All Tickets" : "View My Tickets"}
             </Button>
           </Stack>
         </Stack>
@@ -608,7 +616,7 @@ export default function DashboardPage() {
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 120 }}>Priority</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Category</TableCell>
-                  <TableCell sx={{ fontWeight: 600, width: 160 }}>Reported By</TableCell>
+                  {role === "admin" && <TableCell sx={{ fontWeight: 600, width: 160 }}>Reported By</TableCell>}
                   <TableCell sx={{ fontWeight: 600, width: 160 }}>Assigned To</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 160 }}>Created</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600, width: 90 }}>Action</TableCell>
@@ -644,7 +652,7 @@ export default function DashboardPage() {
                       <PriorityBadge priority={t.priority} />
                     </TableCell>
                     <TableCell>{t.category_name ?? "—"}</TableCell>
-                    <TableCell>{t.created_by_name ?? "—"}</TableCell>
+                    {role === "admin" && <TableCell>{t.created_by_name ?? "—"}</TableCell>}
                     <TableCell>
                       {t.assigned_to_name ? (
                         t.assigned_to_name

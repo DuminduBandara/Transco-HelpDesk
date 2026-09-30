@@ -18,6 +18,7 @@ interface MockUser {
   role: Role;
   department: string | null;
   is_active: number;
+  must_change_password: number;
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +87,7 @@ function getInitialMockState(): MockDbState {
         role: "admin",
         department: "IT",
         is_active: 1,
+        must_change_password: 0,
         created_at: "2026-01-01 09:00:00",
         updated_at: "2026-01-01 09:00:00",
       },
@@ -99,6 +101,7 @@ function getInitialMockState(): MockDbState {
         role: "agent",
         department: "IT Support",
         is_active: 1,
+        must_change_password: 0,
         created_at: "2026-01-02 10:00:00",
         updated_at: "2026-01-02 10:00:00",
       },
@@ -112,6 +115,7 @@ function getInitialMockState(): MockDbState {
         role: "employee",
         department: "Operations",
         is_active: 1,
+        must_change_password: 0,
         created_at: "2026-01-03 11:00:00",
         updated_at: "2026-01-03 11:00:00",
       },
@@ -389,14 +393,14 @@ export async function getDbConnectionStatus() {
 function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
   const norm = sql.trim().replace(/\s+/g, " ");
 
-  // 1. SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ? LIMIT 1
+  // 1. SELECT id, name, email, password_hash, role, is_active, must_change_password FROM users WHERE email = ? LIMIT 1
   if (
-    norm.startsWith("SELECT id, name, email, password_hash, role, is_active FROM users") &&
+    norm.includes("FROM users") &&
     (norm.includes("WHERE email = ?") || norm.includes("WHERE LOWER(email) = ?"))
   ) {
     const email = String(params[0] ?? "").toLowerCase();
     const user = mockDb.users.find((u) => u.email.toLowerCase() === email);
-    return user ? ([{ ...user }] as unknown as T[]) : ([] as T[]);
+    return user ? ([{ ...user, must_change_password: user.must_change_password ?? 0 }] as unknown as T[]) : ([] as T[]);
   }
 
   // 2. Categories
@@ -598,6 +602,7 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
       role: u.role,
       department: u.department,
       is_active: Boolean(u.is_active),
+      must_change_password: Boolean(u.must_change_password),
       created_at: u.created_at,
     })) as unknown as T[];
   }
@@ -847,6 +852,7 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       department: string | null = null,
       mobile_number: string | null = null;
 
+    let must_change_password = norm.includes("must_change_password") ? 1 : 0;
     if (norm.includes("mobile_number")) {
       [name, email, mobile_number, password_hash, role, department] = params as [
         string,
@@ -856,6 +862,9 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
         Role,
         string | null
       ];
+      if (params.length > 6) {
+        must_change_password = Number(params[6]);
+      }
     } else {
       [name, email, password_hash, role, department] = params as [
         string,
@@ -864,6 +873,9 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
         Role,
         string | null
       ];
+      if (params.length > 5) {
+        must_change_password = Number(params[5]);
+      }
     }
     const id = mockDb.nextUserId++;
     mockDb.users.push({
@@ -875,6 +887,7 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       role,
       department: department ?? null,
       is_active: 1,
+      must_change_password,
       created_at: now,
       updated_at: now,
     });
@@ -907,6 +920,12 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
         user.is_active = Number(params[pIdx++]);
       } else if (clause.startsWith("password_hash = ?")) {
         user.password_hash = String(params[pIdx++]);
+      } else if (clause.startsWith("must_change_password = ?")) {
+        user.must_change_password = Number(params[pIdx++]);
+      } else if (clause === "must_change_password = 0") {
+        user.must_change_password = 0;
+      } else if (clause === "must_change_password = 1") {
+        user.must_change_password = 1;
       }
     }
     user.updated_at = now;

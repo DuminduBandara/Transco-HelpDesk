@@ -34,22 +34,27 @@ export async function GET(req: NextRequest) {
 
   const params: unknown[] = [];
   let sql =
-    "SELECT id, name, email, mobile_number, role, department, is_active, created_at FROM users";
+    "SELECT id, name, email, mobile_number, role, department, is_active, must_change_password, created_at FROM users";
   if (roleFilter) {
     sql += " WHERE role = ?";
     params.push(roleFilter);
   }
   sql += " ORDER BY created_at DESC";
 
-  const rows = await query<User>(sql, params);
+  const rows = await query<User & { must_change_password?: number | boolean }>(sql, params);
 
   // Privacy rule: Admins can view all mobile numbers.
   // Non-admins can NEVER view admin mobile numbers.
   const sanitized = rows.map((u) => {
+    const userItem: User = {
+      ...u,
+      is_active: Boolean(u.is_active),
+      must_change_password: Boolean(u.must_change_password),
+    };
     if (u.role === "admin" && user.role !== "admin" && u.id !== user.id) {
-      return { ...u, mobile_number: null };
+      userItem.mobile_number = null;
     }
-    return u;
+    return userItem;
   });
 
   return NextResponse.json({ users: sanitized });
@@ -88,32 +93,58 @@ export async function POST(req: NextRequest) {
   const password_hash = await bcrypt.hash(password, 10);
 
   const result = await execute(
-    "INSERT INTO users (name, email, mobile_number, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO users (name, email, mobile_number, password_hash, role, department, must_change_password) VALUES (?, ?, ?, ?, ?, ?, 1)",
     [name, email, mobile_number?.trim() || null, password_hash, role, department ?? null]
   );
 
   // --- EMAIL INVITATION TRIGGER ---
-  // Send the invitation email to ALL newly created users
+  // Send the invitation email with temporary credentials to newly created user
   try {
+    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const loginUrl = `${appUrl}/login`;
     const emailHtml = `
-      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #0056b3;">Welcome to Transco HelpDesk, ${name}!</h2>
-        <p>An administrator has created a new account for you.</p>
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p style="margin: 0 0 10px 0;"><strong>Login Email:</strong> ${email}</p>
-          <p style="margin: 0;"><strong>Temporary Password:</strong> ${password}</p>
-          <p style="margin: 10px 0 0 0;"><strong>Role:</strong> <span style="text-transform: capitalize;">${role}</span></p>
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
+        <h2 style="color: #1976d2; margin-top: 0;">Welcome to Transco HelpDesk, ${name}!</h2>
+        <p style="font-size: 15px; line-height: 1.5;">An administrator has set up a new account for you on the Transco IT HelpDesk portal.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #1976d2; padding: 16px; border-radius: 6px; margin: 20px 0;">
+          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Portal URL:</strong> <a href="${loginUrl}" style="color: #1976d2; text-decoration: none;">${loginUrl}</a></p>
+          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Username (Email):</strong> ${email}</p>
+          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Temporary Password:</strong> <code style="background-color: #edf2f7; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; color: #2d3748;">${password}</code></p>
+          <p style="margin: 0; font-size: 14px;"><strong>Role:</strong> <span style="text-transform: capitalize; font-weight: 600;">${role}</span></p>
         </div>
-        <p>Please log in and navigate to your profile to change your password immediately.</p>
+
+        <div style="background-color: #fff8e1; border-left: 4px solid #ffa000; padding: 12px 16px; border-radius: 4px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 13px; color: #b78103; font-weight: 600;">
+            Important Security Notice:
+          </p>
+          <p style="margin: 4px 0 0 0; font-size: 13px; color: #5d4037;">
+            You will be prompted to create your own permanent, secure password upon your first login before you can access the system.
+          </p>
+        </div>
+
+        <p style="font-size: 14px; margin-top: 24px;">
+          <a href="${loginUrl}" style="background-color: #1976d2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: 600; display: inline-block;">
+            Sign In to HelpDesk
+          </a>
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #888; margin: 0;">Transco IT HelpDesk System &bull; Please do not reply directly to this automated email.</p>
       </div>
     `;
     
-    await sendEmail(email, 'Your Transco HelpDesk Account Invitation', emailHtml);
+    await sendEmail(email, 'Your Transco HelpDesk Account Invitation & Login Details', emailHtml);
   } catch (error) {
     console.error("Failed to send welcome email:", error);
     // User is created successfully even if email fails
   }
   // --------------------------------
 
-  return NextResponse.json({ id: result.insertId }, { status: 201 });
+  return NextResponse.json({
+    id: result.insertId,
+    name,
+    email,
+    temporaryPassword: password,
+  }, { status: 201 });
 }

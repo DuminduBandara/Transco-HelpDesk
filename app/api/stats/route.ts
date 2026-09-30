@@ -10,8 +10,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!hasRole(user, ["agent", "admin"])) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasRole(user, ["admin"])) {
+    return NextResponse.json({ error: "Forbidden: Admin access only" }, { status: 403 });
   }
 
   const byStatus = await query<{ status: string; count: number }>(

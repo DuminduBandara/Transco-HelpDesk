@@ -11,6 +11,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Activity feed is strictly restricted to administrator accounts only
+  if (user.role !== "admin") {
+    return NextResponse.json({ activities: [] });
+  }
+
   const { searchParams } = new URL(req.url);
   const limit = Math.min(
     Math.max(1, Number(searchParams.get("limit") || "15")),
@@ -18,10 +23,6 @@ export async function GET(req: NextRequest) {
   );
 
   try {
-    const isEmployee = user.role === "employee";
-    const employeeFilter = isEmployee ? "WHERE t.created_by = ?" : "";
-    const employeeAndFilter = isEmployee ? "AND t.created_by = ?" : "";
-
     const sql = `
       SELECT * FROM (
         SELECT
@@ -39,7 +40,6 @@ export async function GET(req: NextRequest) {
         FROM ticket_comments tc
         JOIN tickets t ON t.id = tc.ticket_id
         JOIN users u ON u.id = tc.user_id
-        ${employeeFilter}
 
         UNION ALL
 
@@ -57,7 +57,6 @@ export async function GET(req: NextRequest) {
           t.created_at
         FROM tickets t
         JOIN users cu ON cu.id = t.created_by
-        ${employeeFilter}
 
         UNION ALL
 
@@ -77,19 +76,12 @@ export async function GET(req: NextRequest) {
         LEFT JOIN users au ON au.id = t.assigned_to
         LEFT JOIN users cu ON cu.id = t.created_by
         WHERE t.status != 'open' AND t.updated_at > t.created_at
-        ${employeeAndFilter}
       ) AS combined_activity
       ORDER BY created_at DESC
       LIMIT ?
     `;
 
-    const params: (number | string)[] = [];
-    if (isEmployee) {
-      params.push(user.id, user.id, user.id);
-    }
-    params.push(limit);
-
-    const activities = await query<ActivityItem>(sql, params);
+    const activities = await query<ActivityItem>(sql, [limit]);
     return NextResponse.json({ activities: activities ?? [] });
   } catch (error) {
     console.error("Failed to fetch activities:", error);

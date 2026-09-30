@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   Box,
@@ -38,6 +39,8 @@ const PRIORITY_OPTIONS = [
 
 function TicketsContent() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get("search") || "";
 
@@ -116,62 +119,69 @@ function TicketsContent() {
     setPaginationModel((prev) => ({ ...prev, page: 0 }));
   };
 
-  const columns: GridColDef<Ticket>[] = [
-    {
-      field: "id",
-      headerName: "ID",
-      width: 110,
-      align: "center",
-      headerAlign: "center",
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
-          <Typography variant="body2" fontWeight={600} color="primary.main">
-            #{params.value}
-          </Typography>
-        </Box>
-      ),
-    },
-    { field: "title", headerName: "Title", flex: 1, minWidth: 220 },
-    {
-      field: "status",
-      headerName: "Status",
-      width: 140,
-      renderCell: (params) => <StatusChip status={params.value} />,
-    },
-    {
-      field: "priority",
-      headerName: "Priority",
-      width: 130,
-      renderCell: (params) => <PriorityBadge priority={params.value} />,
-    },
-    {
-      field: "category_name",
-      headerName: "Category",
-      width: 150,
-      valueGetter: (_value, row) => row.category_name ?? "—",
-    },
-    {
-      field: "created_by_name",
-      headerName: "Reported By",
-      width: 160,
-    },
-    {
-      field: "assigned_to_name",
-      headerName: "Assigned To",
-      width: 160,
-      valueGetter: (_value, row) => row.assigned_to_name ?? "Unassigned",
-    },
-    {
-      field: "created_at",
-      headerName: "Created",
-      width: 170,
-    },
-  ];
+  const columns: GridColDef<Ticket>[] = useMemo(() => {
+    const cols: GridColDef<Ticket>[] = [
+      {
+        field: "id",
+        headerName: "ID",
+        width: 110,
+        align: "center",
+        headerAlign: "center",
+        renderCell: (params) => (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
+            <Typography variant="body2" fontWeight={600} color="primary.main">
+              #{params.value}
+            </Typography>
+          </Box>
+        ),
+      },
+      { field: "title", headerName: "Title", flex: 1, minWidth: 220 },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 140,
+        renderCell: (params) => <StatusChip status={params.value} />,
+      },
+      {
+        field: "priority",
+        headerName: "Priority",
+        width: 130,
+        renderCell: (params) => <PriorityBadge priority={params.value} />,
+      },
+      {
+        field: "category_name",
+        headerName: "Category",
+        width: 150,
+        valueGetter: (_value, row) => row.category_name ?? "—",
+      },
+      {
+        field: "created_by_name",
+        headerName: "Reported By",
+        width: 160,
+      },
+      {
+        field: "assigned_to_name",
+        headerName: "Assigned To",
+        width: 160,
+        valueGetter: (_value, row) => row.assigned_to_name ?? "Unassigned",
+      },
+      {
+        field: "created_at",
+        headerName: "Created",
+        width: 170,
+      },
+    ];
+
+    if (role !== "admin") {
+      return cols.filter((col) => col.field !== "created_by_name");
+    }
+    return cols;
+  }, [role]);
 
   return (
     <Box>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-        Tickets
+        {role === "admin" ? "All Tickets" : "My Tickets"}
       </Typography>
 
       <Paper sx={{ p: 2, mb: 2 }}>

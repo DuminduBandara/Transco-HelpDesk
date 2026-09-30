@@ -70,6 +70,7 @@ export async function PATCH(
   if (password) {
     setClauses.push("password_hash = ?");
     values.push(await bcrypt.hash(password, 10));
+    setClauses.push("must_change_password = 1");
   }
 
   if (setClauses.length === 0) {

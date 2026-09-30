@@ -31,8 +31,9 @@ export async function GET(req: NextRequest) {
   const where: string[] = [];
   const params: unknown[] = [];
 
-  // Employees are hard-scoped to their own tickets, regardless of query params.
-  if (user.role === "employee") {
+  // Only admins are allowed to view all tickets across the platform.
+  // All other users (staff, agents, employees) strictly see only their own submitted tickets.
+  if (user.role !== "admin") {
     where.push("t.created_by = ?");
     params.push(user.id);
   }

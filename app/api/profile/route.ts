@@ -96,6 +96,7 @@ export async function PATCH(req: NextRequest) {
     const newHash = await bcrypt.hash(new_password, 10);
     setClauses.push("password_hash = ?");
     values.push(newHash);
+    setClauses.push("must_change_password = 0");
   }
 
   values.push(sessionUser.id);
