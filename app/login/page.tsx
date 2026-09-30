@@ -109,7 +109,7 @@ export default function LoginPage() {
 
         {timeoutNotice && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            You were signed out due to 5 minutes of inactivity. Please sign in again.
+            You were signed out due to 15 minutes of inactivity. Please sign in again.
           </Alert>
         )}
 

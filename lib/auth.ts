@@ -15,7 +15,11 @@ interface DbUserRow {
 }
 
 export const authOptions: AuthOptions = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 15 * 60, // 15 minutes (900 seconds)
+    updateAge: 60, // Keep session alive as long as user is active
+  },
   pages: {
     signIn: "/login",
   },

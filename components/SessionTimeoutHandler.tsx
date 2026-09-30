@@ -17,13 +17,13 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-// 5 minutes total inactivity allowed
-const TIMEOUT_MS = 5 * 60 * 1000; // 300,000 ms
+// 15 minutes total inactivity allowed
+const TIMEOUT_MS = 15 * 60 * 1000; // 900,000 ms
 // Warning displayed for the last 60 seconds of inactivity
 const WARNING_MS = 60 * 1000; // 60,000 ms
 
 export default function SessionTimeoutHandler() {
-  const { status } = useSession();
+  const { status, update } = useSession();
   const [showWarning, setShowWarning] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
   const lastActivityRef = useRef<number>(Date.now());
@@ -42,7 +42,10 @@ export default function SessionTimeoutHandler() {
   const handleStayLoggedIn = useCallback(() => {
     lastActivityRef.current = Date.now();
     setShowWarning(false);
-  }, []);
+    if (typeof update === "function") {
+      update();
+    }
+  }, [update]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -164,7 +167,7 @@ export default function SessionTimeoutHandler() {
 
       <DialogContent sx={{ py: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          You have been inactive for over 4 minutes. For security reasons, you
+          You have been inactive for over 14 minutes. For security reasons, you
           will be automatically signed out in:
         </Typography>
 
