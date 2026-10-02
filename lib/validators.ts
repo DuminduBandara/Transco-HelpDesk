@@ -43,12 +43,6 @@ export const ticketQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
-// ---- Comments ----
-
-export const createCommentSchema = z.object({
-  comment: z.string().trim().min(1, "Comment cannot be empty").max(2000),
-});
-
 // ---- Users (admin) ----
 
 export const createUserSchema = z.object({
