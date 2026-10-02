@@ -12,14 +12,13 @@ import {
   Button,
   Stack,
   Divider,
-  Avatar,
   CircularProgress,
   Alert,
   Grid,
 } from "@mui/material";
 import StatusChip from "@/components/StatusChip";
 import PriorityBadge from "@/components/PriorityBadge";
-import type { Ticket, TicketComment } from "@/types";
+import type { Ticket } from "@/types";
 import { useSnackbar } from "notistack";
 
 export default function TicketDetailPage() {
@@ -30,13 +29,9 @@ export default function TicketDetailPage() {
   const isStaff = role === "agent" || role === "admin";
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [comments, setComments] = useState<TicketComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-
-  const [newComment, setNewComment] = useState("");
-  const [posting, setPosting] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Initialize the notistack hook
@@ -45,25 +40,21 @@ export default function TicketDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [ticketRes, commentsRes] = await Promise.all([
-      fetch(`/api/tickets/${params.id}`),
-      fetch(`/api/tickets/${params.id}/comments`),
-    ]);
+    const res = await fetch(`/api/tickets/${params.id}`);
 
-    if (ticketRes.status === 404) {
+    if (res.status === 404) {
       setNotFound(true);
       setLoading(false);
       return;
     }
-    if (!ticketRes.ok) {
+    if (!res.ok) {
       setError("Failed to load ticket.");
+      setLoading(false);
       return;
     }
 
-    const ticketData = await ticketRes.json();
-    const commentsData = await commentsRes.json();
+    const ticketData = await res.json();
     setTicket(ticketData.ticket);
-    setComments(commentsData.comments ?? []);
     setLoading(false);
   }, [params.id]);
 
@@ -143,32 +134,6 @@ export default function TicketDetailPage() {
       enqueueSnackbar("An unexpected error occurred.", { variant: "error" });
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function submitComment(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    setPosting(true);
-    
-    try {
-      const res = await fetch(`/api/tickets/${params.id}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment: newComment }),
-      });
-      setPosting(false);
-      
-      if (res.ok) {
-        setNewComment("");
-        load();
-        enqueueSnackbar("Comment posted successfully!", { variant: "success" });
-      } else {
-        enqueueSnackbar("Failed to post comment. Please try again.", { variant: "error" });
-      }
-    } catch {
-      setPosting(false);
-      enqueueSnackbar("Network error while posting comment.", { variant: "error" });
     }
   }
 
@@ -323,62 +288,6 @@ export default function TicketDetailPage() {
             </Stack>
           </>
         )}
-      </Paper>
-
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-          Comments ({comments.length})
-        </Typography>
-
-        <Stack spacing={2} sx={{ mb: 3 }}>
-          {comments.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No comments yet.
-            </Typography>
-          )}
-          {comments.map((c) => (
-            <Stack direction="row" spacing={2} key={c.id}>
-              <Avatar sx={{ width: 36, height: 36, fontSize: 14 }}>
-                {c.user_name?.charAt(0).toUpperCase()}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="baseline">
-                  <Typography variant="body2" fontWeight={600}>
-                    {c.user_name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {c.user_role} · {c.created_at}
-                  </Typography>
-                </Stack>
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                  {c.comment}
-                </Typography>
-              </Box>
-            </Stack>
-          ))}
-        </Stack>
-
-        <Divider sx={{ mb: 3 }} />
-
-        <Box component="form" onSubmit={submitComment}>
-          <TextField
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="Add a comment..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-          />
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={posting || !newComment.trim()}
-            >
-              {posting ? "Posting..." : "Post Comment"}
-            </Button>
-          </Box>
-        </Box>
       </Paper>
     </Box>
   );

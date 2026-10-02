@@ -16,7 +16,6 @@ import {
   Button,
 } from "@mui/material";
 import SyncAltIcon from "@mui/icons-material/SyncAlt";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -69,13 +68,6 @@ export default function ActivityFeed({
 
   const getActivityIcon = (type: ActivityType) => {
     switch (type) {
-      case "comment":
-        return {
-          icon: <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />,
-          bg: "#f3e5f5",
-          color: "#7b1fa2",
-          label: "Comment",
-        };
       case "status_change":
         return {
           icon: <SyncAltIcon sx={{ fontSize: 18 }} />,
@@ -124,7 +116,6 @@ export default function ActivityFeed({
     return {
       all: activities.length,
       status_change: activities.filter((a) => a.type === "status_change").length,
-      comment: activities.filter((a) => a.type === "comment").length,
       ticket_created: activities.filter((a) => a.type === "ticket_created").length,
     };
   }, [activities]);
@@ -158,7 +149,7 @@ export default function ActivityFeed({
               Activity Feed
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Recent ticket status changes, agent assignments, and customer comments
+              Recent ticket status changes and new ticket submissions
             </Typography>
           </Box>
         </Box>
@@ -205,16 +196,6 @@ export default function ActivityFeed({
           variant={filter === "status_change" ? "filled" : "outlined"}
           onClick={() => setFilter("status_change")}
           sx={{ fontWeight: filter === "status_change" ? 600 : 400 }}
-        />
-        <Chip
-          icon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
-          label={`Comments (${counts.comment})`}
-          size="small"
-          clickable
-          color={filter === "comment" ? "primary" : "default"}
-          variant={filter === "comment" ? "filled" : "outlined"}
-          onClick={() => setFilter("comment")}
-          sx={{ fontWeight: filter === "comment" ? 600 : 400 }}
         />
         <Chip
           icon={<ConfirmationNumberIcon sx={{ fontSize: 16 }} />}
@@ -350,33 +331,8 @@ export default function ActivityFeed({
                         </Typography>
                       </Box>
 
-                      {/* Comment excerpt or Status description */}
-                      {item.type === "comment" ? (
-                        <Box
-                          sx={{
-                            mt: 1,
-                            p: 1.25,
-                            bgcolor: "rgba(0,0,0,0.02)",
-                            borderLeft: "3px solid",
-                            borderColor: meta.color,
-                            borderRadius: "0 6px 6px 0",
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              fontStyle: "italic",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            &ldquo;{item.details}&rdquo;
-                          </Typography>
-                        </Box>
-                      ) : (
+                      {/* Activity description */}
+                      {item.details && (
                         <Typography
                           variant="caption"
                           color="text.secondary"

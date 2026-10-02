@@ -26,24 +26,6 @@ export async function GET(req: NextRequest) {
     const sql = `
       SELECT * FROM (
         SELECT
-          CONCAT('comment_', tc.id) AS id,
-          'comment' AS type,
-          tc.ticket_id,
-          t.title AS ticket_title,
-          t.status AS ticket_status,
-          t.priority AS ticket_priority,
-          tc.user_id,
-          u.name AS user_name,
-          u.role AS user_role,
-          tc.comment AS details,
-          tc.created_at
-        FROM ticket_comments tc
-        JOIN tickets t ON t.id = tc.ticket_id
-        JOIN users u ON u.id = tc.user_id
-
-        UNION ALL
-
-        SELECT
           CONCAT('created_', t.id) AS id,
           'ticket_created' AS type,
           t.id AS ticket_id,
