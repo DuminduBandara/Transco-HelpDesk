@@ -425,9 +425,11 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
         ...t,
         category_name: cat ? cat.name : null,
         created_by_name: cu ? cu.name : "Unknown",
+        created_by_email: cu ? cu.email : "",
         created_by_role: cu ? cu.role : "employee",
         created_by_mobile: cu ? cu.mobile_number : null,
         assigned_to_name: au ? au.name : null,
+        assigned_to_email: au ? au.email : null,
         assigned_to_role: au ? au.role : null,
         assigned_to_mobile: au ? au.mobile_number : null,
       },
@@ -519,7 +521,11 @@ function mockQuery<T = any>(sql: string, params: unknown[] = []): T[] {
         ...t,
         category_name: cat ? cat.name : null,
         created_by_name: cu ? cu.name : "Unknown",
+        created_by_email: cu ? cu.email : "",
+        created_by_mobile: cu ? cu.mobile_number : null,
         assigned_to_name: au ? au.name : null,
+        assigned_to_email: au ? au.email : null,
+        assigned_to_mobile: au ? au.mobile_number : null,
         total,
       };
     });

@@ -197,7 +197,14 @@ export default function TicketDetailPage() {
             <Typography variant="caption" color="text.secondary">
               Reported By
             </Typography>
-            <Typography variant="body2">{ticket.created_by_name}</Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {ticket.created_by_name}
+            </Typography>
+            {ticket.created_by_email && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", wordBreak: "break-all" }}>
+                ✉️ {ticket.created_by_email}
+              </Typography>
+            )}
             {ticket.created_by_mobile && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                 📞 {ticket.created_by_mobile}
@@ -208,9 +215,14 @@ export default function TicketDetailPage() {
             <Typography variant="caption" color="text.secondary">
               Assigned To
             </Typography>
-            <Typography variant="body2">
+            <Typography variant="body2" fontWeight={ticket.assigned_to_name ? 600 : 400}>
               {ticket.assigned_to_name ?? "Unassigned"}
             </Typography>
+            {ticket.assigned_to_email && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", wordBreak: "break-all" }}>
+                ✉️ {ticket.assigned_to_email}
+              </Typography>
+            )}
             {ticket.assigned_to_mobile && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                 📞 {ticket.assigned_to_mobile}

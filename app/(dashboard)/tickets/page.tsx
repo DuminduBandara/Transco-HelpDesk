@@ -157,7 +157,19 @@ function TicketsContent() {
       {
         field: "created_by_name",
         headerName: "Reported By",
-        width: 160,
+        width: 230,
+        renderCell: (params) => (
+          <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", py: 0.5 }}>
+            <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.2 }}>
+              {params.value || "Unknown"}
+            </Typography>
+            {params.row.created_by_email && (
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                {params.row.created_by_email}
+              </Typography>
+            )}
+          </Box>
+        ),
       },
       {
         field: "assigned_to_name",

@@ -68,8 +68,8 @@ export async function GET(req: NextRequest) {
     `SELECT
        t.id, t.title, t.description, t.status, t.priority,
        t.category_id, c.name AS category_name,
-       t.created_by, cu.name AS created_by_name,
-       t.assigned_to, au.name AS assigned_to_name,
+       t.created_by, cu.name AS created_by_name, cu.email AS created_by_email, cu.mobile_number AS created_by_mobile,
+       t.assigned_to, au.name AS assigned_to_name, au.email AS assigned_to_email, au.mobile_number AS assigned_to_mobile,
        t.created_at, t.updated_at, t.resolved_at,
        COUNT(*) OVER() AS total
      FROM tickets t

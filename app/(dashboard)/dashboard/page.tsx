@@ -616,7 +616,7 @@ export default function DashboardPage() {
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 120 }}>Priority</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 140 }}>Category</TableCell>
-                  {role === "admin" && <TableCell sx={{ fontWeight: 600, width: 160 }}>Reported By</TableCell>}
+                  {role === "admin" && <TableCell sx={{ fontWeight: 600, width: 220 }}>Reported By</TableCell>}
                   <TableCell sx={{ fontWeight: 600, width: 160 }}>Assigned To</TableCell>
                   <TableCell sx={{ fontWeight: 600, width: 160 }}>Created</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600, width: 90 }}>Action</TableCell>
@@ -652,7 +652,18 @@ export default function DashboardPage() {
                       <PriorityBadge priority={t.priority} />
                     </TableCell>
                     <TableCell>{t.category_name ?? "—"}</TableCell>
-                    {role === "admin" && <TableCell>{t.created_by_name ?? "—"}</TableCell>}
+                    {role === "admin" && (
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.2 }}>
+                          {t.created_by_name ?? "—"}
+                        </Typography>
+                        {t.created_by_email && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>
+                            {t.created_by_email}
+                          </Typography>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {t.assigned_to_name ? (
                         t.assigned_to_name
