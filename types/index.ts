@@ -55,7 +55,8 @@ export interface Category {
 export type ActivityType =
   | "ticket_created"
   | "status_change"
-  | "ticket_assigned";
+  | "ticket_assigned"
+  | "comment";
 
 export interface ActivityItem {
   id: string | number;

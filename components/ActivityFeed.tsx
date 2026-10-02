@@ -331,33 +331,8 @@ export default function ActivityFeed({
                         </Typography>
                       </Box>
 
-                      {/* Comment excerpt or Status description */}
-                      {item.type === "comment" ? (
-                        <Box
-                          sx={{
-                            mt: 1,
-                            p: 1.25,
-                            bgcolor: "rgba(0,0,0,0.02)",
-                            borderLeft: "3px solid",
-                            borderColor: meta.color,
-                            borderRadius: "0 6px 6px 0",
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              fontStyle: "italic",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            &ldquo;{item.details}&rdquo;
-                          </Typography>
-                        </Box>
-                      ) : (
+                      {/* Activity description */}
+                      {item.details && (
                         <Typography
                           variant="caption"
                           color="text.secondary"

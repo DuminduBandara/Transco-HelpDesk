@@ -225,32 +225,6 @@ function getInitialMockState(): MockDbState {
         created_at: "2026-09-22 10:00:00",
       },
       {
-        id: "act-2",
-        type: "comment",
-        ticket_id: "TK1003",
-        ticket_title: "VPN client disconnection every 30 minutes",
-        ticket_status: "resolved",
-        ticket_priority: "urgent",
-        user_id: 2,
-        user_name: "Sarah Agent",
-        user_role: "agent",
-        details: "MTU size adjustment in adapter settings resolved the packet loss issue.",
-        created_at: "2026-09-22 10:00:00",
-      },
-      {
-        id: "act-3",
-        type: "comment",
-        ticket_id: "TK1002",
-        ticket_title: "Request access to Production Logs dashboard",
-        ticket_status: "in_progress",
-        ticket_priority: "medium",
-        user_id: 2,
-        user_name: "Sarah Agent",
-        user_role: "agent",
-        details: "I have requested approval from your team lead and will grant permissions once confirmed.",
-        created_at: "2026-09-23 13:40:00",
-      },
-      {
         id: "act-4",
         type: "ticket_assigned",
         ticket_id: "TK1002",
@@ -823,21 +797,6 @@ function mockExecute(sql: string, params: unknown[] = []): mysql.ResultSetHeader
       ticket_id: tId,
       user_id: userId,
       comment,
-      created_at: now,
-    });
-    const t = mockDb.tickets.find((item) => item.id.toUpperCase() === tId.toUpperCase());
-    const u = mockDb.users.find((user) => user.id === userId);
-    mockDb.activities.unshift({
-      id: `act-${Date.now()}`,
-      type: "comment",
-      ticket_id: tId,
-      ticket_title: t ? t.title : `Ticket #${tId}`,
-      ticket_status: t ? t.status : undefined,
-      ticket_priority: t ? t.priority : undefined,
-      user_id: userId,
-      user_name: u ? u.name : "User",
-      user_role: u ? u.role : "employee",
-      details: comment.length > 100 ? `${comment.substring(0, 100)}...` : comment,
       created_at: now,
     });
     return { insertId: id, affectedRows: 1 } as mysql.ResultSetHeader;
