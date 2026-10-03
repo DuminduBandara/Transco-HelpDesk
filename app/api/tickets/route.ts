@@ -15,63 +15,96 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
-// Background asynchronous email dispatch for ticket creation
+import {
+  buildTicketCreatedStaffEmail,
+  buildTicketCreatedAdminEmail,
+} from "@/lib/emailTemplates";
+
+// Background asynchronous email dispatch for ticket creation (Initial thread email)
 async function sendTicketCreatedEmails(params: {
   ticketId: string;
   title: string;
   description: string;
   priority: string;
+  categoryId?: number | null;
   userName: string;
   userEmail: string;
 }) {
-  const safeTicketId = escapeHtml(params.ticketId);
-  const safeTitle = escapeHtml(params.title);
-  const safeDescription = escapeHtml(params.description);
-  const safePriority = escapeHtml(params.priority);
-  const safeUserName = escapeHtml(params.userName);
-  const safeUserEmail = escapeHtml(params.userEmail);
+  const appUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
 
-  // 1. Notify User who created the ticket
-  const userEmailHtml = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-      <h2 style="color: #0056b3;">Ticket Submitted Successfully: #${safeTicketId}</h2>
-      <p>Hi ${safeUserName},</p>
-      <p>We have received your ticket and our team will review it shortly. Here are the details you submitted:</p>
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <h3 style="margin-top: 0;">${safeTitle}</h3>
-        <p style="margin-bottom: 0; white-space: pre-wrap;">${safeDescription}</p>
-        <br/>
-        <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${safePriority}</span></p>
-      </div>
-      <p>We will notify you via email when there is an update to your ticket status.</p>
-    </div>
-  `;
+  // Lookup category name if available
+  let categoryName: string | undefined;
+  if (params.categoryId) {
+    const cats = await query<{ name: string }>(
+      "SELECT name FROM categories WHERE id = ? LIMIT 1",
+      [params.categoryId]
+    );
+    categoryName = cats[0]?.name;
+  }
 
-  await sendEmail(params.userEmail, `Ticket Submitted: #${safeTicketId} - ${params.title}`, userEmailHtml);
+  const subject = `[Ticket #${params.ticketId}] ${params.title}`;
 
-  // 2. Fetch all active admins to notify them of the new ticket
+  // 1. Send confirmation email to staff member (Root email of the ticket thread)
+  const staffEmail = buildTicketCreatedStaffEmail({
+    ticketId: params.ticketId,
+    title: params.title,
+    description: params.description,
+    priority: params.priority,
+    categoryName,
+    userName: params.userName,
+    appUrl,
+  });
+
+  const staffResult = await sendEmail(
+    params.userEmail,
+    staffEmail.subject,
+    staffEmail.html,
+    {
+      text: staffEmail.text,
+      ticketId: params.ticketId,
+      isReply: false,
+    }
+  );
+
+  if (!staffResult.success) {
+    console.warn(
+      `[Email Warning] Could not deliver 1st ticket confirmation to ${params.userEmail}:`,
+      staffResult.error
+    );
+  }
+
+  // 2. Fetch all other active admins to notify them (excluding the ticket creator)
   const admins = await query<{ email: string }>(
     "SELECT email FROM users WHERE role = 'admin' AND is_active = 1"
   );
 
-  if (admins && admins.length > 0) {
-    const adminEmailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #0056b3;">New Ticket Created: #${safeTicketId}</h2>
-        <p>A new ticket has been submitted by <strong>${safeUserName}</strong> (${safeUserEmail}).</p>
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">${safeTitle}</h3>
-          <p style="margin-bottom: 0; white-space: pre-wrap;">${safeDescription}</p>
-          <br/>
-          <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${safePriority}</span></p>
-        </div>
-        <p>Please log in to the Transco HelpDesk to review and assign this ticket.</p>
-      </div>
-    `;
+  const otherAdmins = (admins || [])
+    .map((a) => a.email.trim())
+    .filter(
+      (email) =>
+        email.length > 0 &&
+        email.toLowerCase() !== params.userEmail.trim().toLowerCase()
+    );
+
+  if (otherAdmins.length > 0) {
+    const adminEmail = buildTicketCreatedAdminEmail({
+      ticketId: params.ticketId,
+      title: params.title,
+      description: params.description,
+      priority: params.priority,
+      categoryName,
+      creatorName: params.userName,
+      creatorEmail: params.userEmail,
+      appUrl,
+    });
 
     await Promise.all(
-      admins.map((admin) =>
-        sendEmail(admin.email, `New Ticket Alert: #${safeTicketId} - ${params.title}`, adminEmailHtml)
+      otherAdmins.map((adminEmailAddr) =>
+        sendEmail(adminEmailAddr, adminEmail.subject, adminEmail.html, {
+          text: adminEmail.text,
+          ticketId: params.ticketId,
+          isReply: true,
+        })
       )
     );
   }
@@ -235,6 +268,7 @@ export async function POST(req: NextRequest) {
     title,
     description,
     priority,
+    categoryId: validCategoryId,
     userName: user.name,
     userEmail: user.email,
   }).catch((error) => {

@@ -33,50 +33,83 @@ async function getTicketOr404(id: string) {
   return rows[0] ?? null;
 }
 
-// Background asynchronous email dispatch for status update
+import { buildTicketStatusUpdateEmail } from "@/lib/emailTemplates";
+
+// Background asynchronous email dispatch for status update (chained into the ticket's email thread)
 async function sendTicketStatusUpdateEmail(params: {
   ticketId: string;
   ticketTitle: string;
   newStatus: string;
+  oldStatus?: string;
   updaterName: string;
+  creatorName: string;
   creatorEmail?: string;
-  assigneeEmail?: string;
+  assigneeName?: string | null;
+  assigneeEmail?: string | null;
+  categoryName?: string | null;
+  priority?: string;
   updaterEmail: string;
 }) {
-  const { ticketId, ticketTitle, newStatus, updaterName, creatorEmail, assigneeEmail, updaterEmail } = params;
-  const safeId = escapeHtml(ticketId);
-  const safeTitle = escapeHtml(ticketTitle);
-  const safeStatus = escapeHtml(newStatus);
-  const safeUpdaterName = escapeHtml(updaterName);
+  const {
+    ticketId,
+    ticketTitle,
+    newStatus,
+    oldStatus,
+    updaterName,
+    creatorName,
+    creatorEmail,
+    assigneeName,
+    assigneeEmail,
+    categoryName,
+    priority,
+    updaterEmail,
+  } = params;
 
-  const statusColors: Record<string, string> = {
-    open: "#0056b3",
-    in_progress: "#ffc107",
-    "in progress": "#ffc107",
-    resolved: "#28a745",
-    closed: "#6c757d",
-  };
-  const statusColor = statusColors[newStatus.toLowerCase()] || "#0056b3";
+  const appUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const subject = `[Ticket #${ticketId}] ${ticketTitle}`;
 
-  const emailHtml = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-      <h2 style="color: ${statusColor};">Ticket Status Update: #${safeId}</h2>
-      <p>The status of the ticket "<strong>${safeTitle}</strong>" has been changed to: <strong style="text-transform: uppercase; color: ${statusColor};">${safeStatus}</strong>.</p>
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p style="margin: 0;"><strong>Updated by:</strong> ${safeUpdaterName}</p>
-      </div>
-      <p>Please log in to the Transco HelpDesk to view full details.</p>
-    </div>
-  `;
-
-  // 1. Notify the ticket creator
+  // 1. Notify the staff member who originally submitted the ticket (chained in single thread)
   if (creatorEmail) {
-    await sendEmail(creatorEmail, `Ticket Update: #${safeId} [${newStatus.toUpperCase()}]`, emailHtml);
+    const creatorEmailData = buildTicketStatusUpdateEmail({
+      ticketId,
+      title: ticketTitle,
+      newStatus,
+      oldStatus,
+      updaterName,
+      recipientName: creatorName,
+      assigneeName,
+      categoryName,
+      priority,
+      appUrl,
+    });
+
+    await sendEmail(creatorEmail, creatorEmailData.subject, creatorEmailData.html, {
+      text: creatorEmailData.text,
+      ticketId,
+      isReply: true,
+    });
   }
 
-  // 2. Notify assigned staff member (if different from creator and updater)
+  // 2. Notify assigned technician (if different from creator and updater)
   if (assigneeEmail && assigneeEmail !== creatorEmail && assigneeEmail !== updaterEmail) {
-    await sendEmail(assigneeEmail, `Assigned Ticket Update: #${safeId} [${newStatus.toUpperCase()}]`, emailHtml);
+    const assigneeEmailData = buildTicketStatusUpdateEmail({
+      ticketId,
+      title: ticketTitle,
+      newStatus,
+      oldStatus,
+      updaterName,
+      recipientName: assigneeName || "IT Technician",
+      assigneeName,
+      categoryName,
+      priority,
+      appUrl,
+    });
+
+    await sendEmail(assigneeEmail, assigneeEmailData.subject, assigneeEmailData.html, {
+      text: assigneeEmailData.text,
+      ticketId,
+      isReply: true,
+    });
   }
 }
 
@@ -152,6 +185,11 @@ export async function PATCH(
   }
   const data = parsed.data;
 
+  // When an admin or agent changes status to 'in_progress', automatically assign to that admin/agent
+  if (data.status === "in_progress" && data.assigned_to === undefined) {
+    data.assigned_to = user.id;
+  }
+
   const setClauses: string[] = [];
   const values: unknown[] = [];
 
@@ -176,15 +214,25 @@ export async function PATCH(
 
   const updated = await getTicketOr404(id);
 
-  // Asynchronous non-blocking email dispatch if status changed
-  if (data.status && data.status !== existing.status && updated) {
+  // Asynchronous non-blocking email dispatch if status changed or assignee changed
+  const statusChanged = Boolean(data.status && data.status !== existing.status);
+  const assigneeChanged = Boolean(
+    data.assigned_to !== undefined && data.assigned_to !== existing.assigned_to
+  );
+
+  if ((statusChanged || assigneeChanged) && updated) {
     sendTicketStatusUpdateEmail({
       ticketId: id,
       ticketTitle: updated.title,
-      newStatus: data.status,
+      newStatus: updated.status,
+      oldStatus: existing.status,
       updaterName: user.name,
+      creatorName: (updated as any).created_by_name || "Colleague",
       creatorEmail: (updated as any).created_by_email,
+      assigneeName: (updated as any).assigned_to_name,
       assigneeEmail: (updated as any).assigned_to_email,
+      categoryName: (updated as any).category_name,
+      priority: updated.priority,
       updaterEmail: user.email,
     }).catch((error) => {
       console.error(`[Email Error] Failed to send status update notification for ticket ${id}:`, error);
