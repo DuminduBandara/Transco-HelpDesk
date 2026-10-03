@@ -132,10 +132,7 @@ export async function DELETE(
     targetId,
   ]);
 
-  // 3. Delete comments posted by target user
-  await execute("DELETE FROM comments WHERE user_id = ?", [targetId]);
-
-  // 4. Delete the user
+  // 3. Delete the user
   await execute("DELETE FROM users WHERE id = ?", [targetId]);
 
   return NextResponse.json({
