@@ -289,7 +289,14 @@ export default function FirstLoginPage() {
               color="inherit"
               size="small"
               startIcon={<LogoutIcon />}
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={async () => {
+                try {
+                  await signOut({ redirect: false });
+                } catch {
+                  // ignore
+                }
+                window.location.href = "/login";
+              }}
               sx={{ textTransform: "none", color: "text.secondary" }}
             >
               Sign out and change later
