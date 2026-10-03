@@ -9,7 +9,7 @@ const profileUpdateSchema = z.object({
   department: z.string().trim().max(120).optional().nullable(),
   mobile_number: z.string().trim().max(30).optional().nullable(),
   current_password: z.string().optional(),
-  new_password: z.string().min(6, "New password must be at least 6 characters").optional(),
+  new_password: z.string().min(8, "New password must be at least 8 characters").optional(),
 });
 
 // GET /api/profile — fetch logged-in user profile details

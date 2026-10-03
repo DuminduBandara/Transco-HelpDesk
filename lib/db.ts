@@ -931,8 +931,11 @@ export async function query<T = any>(
       return rows as T[];
     } catch (err) {
       lastDbError = (err as Error).message;
-      console.warn("[DB] ⚠️ MySQL query failed, falling back to mock:", (err as Error).message);
+      throw err;
     }
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Database connection is not available in production environment.");
   }
   return mockQuery<T>(sql, params);
 }
@@ -950,8 +953,11 @@ export async function execute(
       return result as mysql.ResultSetHeader;
     } catch (err) {
       lastDbError = (err as Error).message;
-      console.error("[DB] ❌ MySQL execute failed, falling back to mock:", (err as Error).message);
+      throw err;
     }
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Database connection is not available in production environment.");
   }
   return mockExecute(sql, params);
 }

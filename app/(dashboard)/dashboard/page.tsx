@@ -202,18 +202,38 @@ export default function DashboardPage() {
     }
     initialLoad();
 
-    fetch("/api/db-status")
-      .then((r) => r.json())
-      .then((data) => setDbStatus(data))
-      .catch(() => {});
+    if (role === "admin") {
+      fetch("/api/db-status")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) setDbStatus(data);
+        })
+        .catch(() => {});
+    }
 
-    // Polling mechanism: automatically refresh the Latest Tickets table every 30 seconds
+    // Polling mechanism: refresh Latest Tickets table every 30 seconds only when tab is actively visible
     const intervalId = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
       fetchLatestTickets(true);
     }, 30000);
 
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchLatestTickets(true);
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       clearInterval(intervalId);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
     };
   }, [role, fetchLatestTickets, fetchActivities]);
 
