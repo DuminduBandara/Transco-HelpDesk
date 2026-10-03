@@ -95,6 +95,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setUserMenuAnchor(null);
   };
 
+  const handleLogout = async () => {
+    handleUserMenuClose();
+    try {
+      await signOut({ redirect: false });
+    } catch {
+      // ignore
+    }
+    window.location.href = "/login";
+  };
+
   const navItems = [
     {
       label: "Dashboard",
@@ -386,7 +396,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Tooltip title="Sign Out" placement="right" arrow>
               <IconButton
                 size="small"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
                 sx={{
                   color: "error.main",
                   border: "1px solid",
@@ -435,7 +445,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               size="small"
               color="inherit"
               startIcon={<LogoutIcon fontSize="small" />}
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={handleLogout}
               sx={{
                 justifyContent: "flex-start",
                 textTransform: "none",
@@ -685,7 +695,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
             {/* Logout Option */}
             <MenuItem
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={handleLogout}
               sx={{
                 py: 1,
                 color: "error.main",

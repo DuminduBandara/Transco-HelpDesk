@@ -71,7 +71,7 @@ INSERT IGNORE INTO `categories` (`id`, `name`) VALUES
 (2, 'Software & Applications'),
 (3, 'Network & Connectivity'),
 (4, 'Access & Permissions'),
-(5, 'Email & Microsoft 365'),
+(5, 'Email & Communication'),
 (6, 'Printer & Peripherals'),
 (7, 'General IT Inquiries');
 

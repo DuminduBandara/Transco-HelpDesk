@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { updateTicketSchema } from "@/lib/validators";
-import { sendEmail } from '@/lib/email';
+import { sendEmail } from "@/lib/email";
 import type { Ticket } from "@/types";
+
+function escapeHtml(str: string): string {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 async function getTicketOr404(id: string) {
   const rows = await query<Ticket>(
@@ -22,6 +31,53 @@ async function getTicketOr404(id: string) {
     [id]
   );
   return rows[0] ?? null;
+}
+
+// Background asynchronous email dispatch for status update
+async function sendTicketStatusUpdateEmail(params: {
+  ticketId: string;
+  ticketTitle: string;
+  newStatus: string;
+  updaterName: string;
+  creatorEmail?: string;
+  assigneeEmail?: string;
+  updaterEmail: string;
+}) {
+  const { ticketId, ticketTitle, newStatus, updaterName, creatorEmail, assigneeEmail, updaterEmail } = params;
+  const safeId = escapeHtml(ticketId);
+  const safeTitle = escapeHtml(ticketTitle);
+  const safeStatus = escapeHtml(newStatus);
+  const safeUpdaterName = escapeHtml(updaterName);
+
+  const statusColors: Record<string, string> = {
+    open: "#0056b3",
+    in_progress: "#ffc107",
+    "in progress": "#ffc107",
+    resolved: "#28a745",
+    closed: "#6c757d",
+  };
+  const statusColor = statusColors[newStatus.toLowerCase()] || "#0056b3";
+
+  const emailHtml = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: ${statusColor};">Ticket Status Update: #${safeId}</h2>
+      <p>The status of the ticket "<strong>${safeTitle}</strong>" has been changed to: <strong style="text-transform: uppercase; color: ${statusColor};">${safeStatus}</strong>.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Updated by:</strong> ${safeUpdaterName}</p>
+      </div>
+      <p>Please log in to the Transco HelpDesk to view full details.</p>
+    </div>
+  `;
+
+  // 1. Notify the ticket creator
+  if (creatorEmail) {
+    await sendEmail(creatorEmail, `Ticket Update: #${safeId} [${newStatus.toUpperCase()}]`, emailHtml);
+  }
+
+  // 2. Notify assigned staff member (if different from creator and updater)
+  if (assigneeEmail && assigneeEmail !== creatorEmail && assigneeEmail !== updaterEmail) {
+    await sendEmail(assigneeEmail, `Assigned Ticket Update: #${safeId} [${newStatus.toUpperCase()}]`, emailHtml);
+  }
 }
 
 // GET /api/tickets/:id
@@ -120,52 +176,25 @@ export async function PATCH(
 
   const updated = await getTicketOr404(id);
 
-  // --- EMAIL NOTIFICATION TRIGGER ---
-  try {
-    // Check if the status was explicitly changed in this request
-    if (data.status && data.status !== existing.status && updated) {
-      
-      // Determine header color based on the new status
-      const statusColors: Record<string, string> = {
-        open: '#0056b3',
-        'in progress': '#ffc107',
-        resolved: '#28a745',
-        closed: '#6c757d'
-      };
-      const statusColor = statusColors[data.status.toLowerCase()] || '#0056b3';
-      
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-          <h2 style="color: ${statusColor};">Ticket Status Update: #${id}</h2>
-          <p>The status of the ticket "<strong>${updated.title}</strong>" has been changed to: <strong style="text-transform: uppercase; color: ${statusColor};">${data.status}</strong>.</p>
-          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Updated by:</strong> ${user.name}</p>
-          </div>
-          <p>Please log in to the Transco HelpDesk to view full details or add comments.</p>
-        </div>
-      `;
-
-      // 1. Notify the user who originally created the ticket
-      const creatorEmail = (updated as any).created_by_email;
-      if (creatorEmail) {
-        await sendEmail(creatorEmail, `Ticket Update: #${id} [${data.status.toUpperCase()}]`, emailHtml);
-      }
-
-      // 2. Notify the assigned staff member (if it exists, and it isn't the person making the change or the creator)
-      const assigneeEmail = (updated as any).assigned_to_email;
-      if (assigneeEmail && assigneeEmail !== creatorEmail && assigneeEmail !== user.email) {
-        await sendEmail(assigneeEmail, `Assigned Ticket Update: #${id} [${data.status.toUpperCase()}]`, emailHtml);
-      }
-    }
-  } catch (error) {
-    console.error(`Failed to send status update notification for ticket ${id}:`, error);
+  // Asynchronous non-blocking email dispatch if status changed
+  if (data.status && data.status !== existing.status && updated) {
+    sendTicketStatusUpdateEmail({
+      ticketId: id,
+      ticketTitle: updated.title,
+      newStatus: data.status,
+      updaterName: user.name,
+      creatorEmail: (updated as any).created_by_email,
+      assigneeEmail: (updated as any).assigned_to_email,
+      updaterEmail: user.email,
+    }).catch((error) => {
+      console.error(`[Email Error] Failed to send status update notification for ticket ${id}:`, error);
+    });
   }
-  // ----------------------------------
 
   return NextResponse.json({ ticket: updated });
 }
 
-// DELETE /api/tickets/:id — admin only (hard delete, rarely used; prefer 'closed' status)
+// DELETE /api/tickets/:id — admin only
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }

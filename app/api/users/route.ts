@@ -3,12 +3,69 @@ import bcrypt from "bcryptjs";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createUserSchema } from "@/lib/validators";
-import { sendEmail } from '@/lib/email';
+import { sendEmail } from "@/lib/email";
 import type { User } from "@/types";
 
-// GET /api/users — admin only (also used to populate "assign to" dropdowns
-// for agents, restricted to id/name/role there — see /api/users?role=agent
-// which is allowed for agent/admin).
+function escapeHtml(str: string): string {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Background asynchronous email dispatch for user invitation
+async function sendUserInvitationEmail(params: {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}) {
+  const safeName = escapeHtml(params.name);
+  const safeEmail = escapeHtml(params.email);
+  const safePassword = escapeHtml(params.password);
+  const safeRole = escapeHtml(params.role);
+  const appUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const loginUrl = `${appUrl}/login`;
+  const safeLoginUrl = escapeHtml(loginUrl);
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
+      <h2 style="color: #1976d2; margin-top: 0;">Welcome to Transco HelpDesk, ${safeName}!</h2>
+      <p style="font-size: 15px; line-height: 1.5;">An administrator has set up a new account for you on the Transco IT HelpDesk portal.</p>
+      
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #1976d2; padding: 16px; border-radius: 6px; margin: 20px 0;">
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Portal URL:</strong> <a href="${safeLoginUrl}" style="color: #1976d2; text-decoration: none;">${safeLoginUrl}</a></p>
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Username (Email):</strong> ${safeEmail}</p>
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Temporary Password:</strong> <code style="background-color: #edf2f7; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; color: #2d3748;">${safePassword}</code></p>
+        <p style="margin: 0; font-size: 14px;"><strong>Role:</strong> <span style="text-transform: capitalize; font-weight: 600;">${safeRole}</span></p>
+      </div>
+
+      <div style="background-color: #fff8e1; border-left: 4px solid #ffa000; padding: 12px 16px; border-radius: 4px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 13px; color: #b78103; font-weight: 600;">
+          Important Security Notice:
+        </p>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #5d4037;">
+          You will be prompted to create your own permanent, secure password upon your first login before you can access the system.
+        </p>
+      </div>
+
+      <p style="font-size: 14px; margin-top: 24px;">
+        <a href="${safeLoginUrl}" style="background-color: #1976d2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: 600; display: inline-block;">
+          Sign In to HelpDesk
+        </a>
+      </p>
+      
+      <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+      <p style="font-size: 12px; color: #888; margin: 0;">Transco IT HelpDesk System &bull; Please do not reply directly to this automated email.</p>
+    </div>
+  `;
+
+  await sendEmail(params.email, "Your Transco HelpDesk Account Invitation & Login Details", emailHtml);
+}
+
+// GET /api/users — admin only (also used to populate "assign to" dropdowns for agents)
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
@@ -80,9 +137,7 @@ export async function POST(req: NextRequest) {
   }
   const { name, email, mobile_number, password, role, department } = parsed.data;
 
-  const existing = await query("SELECT id FROM users WHERE email = ?", [
-    email,
-  ]);
+  const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
   if (existing.length > 0) {
     return NextResponse.json(
       { error: "A user with this email already exists" },
@@ -97,54 +152,23 @@ export async function POST(req: NextRequest) {
     [name, email, mobile_number?.trim() || null, password_hash, role, department ?? null]
   );
 
-  // --- EMAIL INVITATION TRIGGER ---
-  // Send the invitation email with temporary credentials to newly created user
-  try {
-    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const loginUrl = `${appUrl}/login`;
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
-        <h2 style="color: #1976d2; margin-top: 0;">Welcome to Transco HelpDesk, ${name}!</h2>
-        <p style="font-size: 15px; line-height: 1.5;">An administrator has set up a new account for you on the Transco IT HelpDesk portal.</p>
-        
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #1976d2; padding: 16px; border-radius: 6px; margin: 20px 0;">
-          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Portal URL:</strong> <a href="${loginUrl}" style="color: #1976d2; text-decoration: none;">${loginUrl}</a></p>
-          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Username (Email):</strong> ${email}</p>
-          <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Temporary Password:</strong> <code style="background-color: #edf2f7; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; color: #2d3748;">${password}</code></p>
-          <p style="margin: 0; font-size: 14px;"><strong>Role:</strong> <span style="text-transform: capitalize; font-weight: 600;">${role}</span></p>
-        </div>
-
-        <div style="background-color: #fff8e1; border-left: 4px solid #ffa000; padding: 12px 16px; border-radius: 4px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 13px; color: #b78103; font-weight: 600;">
-            Important Security Notice:
-          </p>
-          <p style="margin: 4px 0 0 0; font-size: 13px; color: #5d4037;">
-            You will be prompted to create your own permanent, secure password upon your first login before you can access the system.
-          </p>
-        </div>
-
-        <p style="font-size: 14px; margin-top: 24px;">
-          <a href="${loginUrl}" style="background-color: #1976d2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: 600; display: inline-block;">
-            Sign In to HelpDesk
-          </a>
-        </p>
-        
-        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #888; margin: 0;">Transco IT HelpDesk System &bull; Please do not reply directly to this automated email.</p>
-      </div>
-    `;
-    
-    await sendEmail(email, 'Your Transco HelpDesk Account Invitation & Login Details', emailHtml);
-  } catch (error) {
-    console.error("Failed to send welcome email:", error);
-    // User is created successfully even if email fails
-  }
-  // --------------------------------
-
-  return NextResponse.json({
-    id: result.insertId,
+  // Send invitation email in the background without blocking HTTP response
+  sendUserInvitationEmail({
     name,
     email,
-    temporaryPassword: password,
-  }, { status: 201 });
+    password,
+    role,
+  }).catch((error) => {
+    console.error("[Email Error] Failed to send user welcome email:", error);
+  });
+
+  return NextResponse.json(
+    {
+      id: result.insertId,
+      name,
+      email,
+      temporaryPassword: password,
+    },
+    { status: 201 }
+  );
 }

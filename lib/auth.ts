@@ -14,6 +14,10 @@ interface DbUserRow {
   must_change_password?: number;
 }
 
+if (process.env.NODE_ENV === "production" && !process.env.NEXTAUTH_SECRET) {
+  throw new Error("SECURITY ERROR: NEXTAUTH_SECRET environment variable must be set in production.");
+}
+
 export const authOptions: AuthOptions = {
   session: {
     strategy: "jwt",
@@ -22,6 +26,8 @@ export const authOptions: AuthOptions = {
   },
   pages: {
     signIn: "/login",
+    signOut: "/login",
+    error: "/login",
   },
   providers: [
     CredentialsProvider({
@@ -78,7 +84,7 @@ export const authOptions: AuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "it-helpdesk-jwt-secret-key-32chars-min-ai-studio",
+  secret: process.env.NEXTAUTH_SECRET || "it-helpdesk-dev-secret-only-not-for-prod-32chars",
 };
 
 /**

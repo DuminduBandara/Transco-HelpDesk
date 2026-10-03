@@ -34,9 +34,14 @@ export default function SessionTimeoutHandler() {
     isWarningOpenRef.current = showWarning;
   }, [showWarning]);
 
-  const handleSignOut = useCallback(() => {
+  const handleSignOut = useCallback(async () => {
     setShowWarning(false);
-    signOut({ callbackUrl: "/login?reason=timeout" });
+    try {
+      await signOut({ redirect: false });
+    } catch {
+      // ignore
+    }
+    window.location.href = "/login?reason=timeout";
   }, []);
 
   const handleStayLoggedIn = useCallback(() => {

@@ -3,13 +3,81 @@ import { getCurrentUser } from "@/lib/auth";
 import { query, execute } from "@/lib/db";
 import { createTicketSchema, ticketQuerySchema } from "@/lib/validators";
 import { generateTicketId } from "@/lib/ticketId";
-import { sendEmail } from '@/lib/email';
+import { sendEmail } from "@/lib/email";
 import type { Ticket } from "@/types";
 
+function escapeHtml(str: string): string {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Background asynchronous email dispatch for ticket creation
+async function sendTicketCreatedEmails(params: {
+  ticketId: string;
+  title: string;
+  description: string;
+  priority: string;
+  userName: string;
+  userEmail: string;
+}) {
+  const safeTicketId = escapeHtml(params.ticketId);
+  const safeTitle = escapeHtml(params.title);
+  const safeDescription = escapeHtml(params.description);
+  const safePriority = escapeHtml(params.priority);
+  const safeUserName = escapeHtml(params.userName);
+  const safeUserEmail = escapeHtml(params.userEmail);
+
+  // 1. Notify User who created the ticket
+  const userEmailHtml = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: #0056b3;">Ticket Submitted Successfully: #${safeTicketId}</h2>
+      <p>Hi ${safeUserName},</p>
+      <p>We have received your ticket and our team will review it shortly. Here are the details you submitted:</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">${safeTitle}</h3>
+        <p style="margin-bottom: 0; white-space: pre-wrap;">${safeDescription}</p>
+        <br/>
+        <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${safePriority}</span></p>
+      </div>
+      <p>We will notify you via email when there is an update to your ticket status.</p>
+    </div>
+  `;
+
+  await sendEmail(params.userEmail, `Ticket Submitted: #${safeTicketId} - ${params.title}`, userEmailHtml);
+
+  // 2. Fetch all active admins to notify them of the new ticket
+  const admins = await query<{ email: string }>(
+    "SELECT email FROM users WHERE role = 'admin' AND is_active = 1"
+  );
+
+  if (admins && admins.length > 0) {
+    const adminEmailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h2 style="color: #0056b3;">New Ticket Created: #${safeTicketId}</h2>
+        <p>A new ticket has been submitted by <strong>${safeUserName}</strong> (${safeUserEmail}).</p>
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">${safeTitle}</h3>
+          <p style="margin-bottom: 0; white-space: pre-wrap;">${safeDescription}</p>
+          <br/>
+          <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${safePriority}</span></p>
+        </div>
+        <p>Please log in to the Transco HelpDesk to review and assign this ticket.</p>
+      </div>
+    `;
+
+    await Promise.all(
+      admins.map((admin) =>
+        sendEmail(admin.email, `New Ticket Alert: #${safeTicketId} - ${params.title}`, adminEmailHtml)
+      )
+    );
+  }
+}
+
 // GET /api/tickets — list tickets, scoped by role, filterable, paginated.
-//   employee -> only their own tickets
-//   agent/admin -> all tickets
-// Query params: status, priority, category_id, assigned_to, page, pageSize
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
@@ -32,7 +100,7 @@ export async function GET(req: NextRequest) {
   const params: unknown[] = [];
 
   // Only admins are allowed to view all tickets across the platform.
-  // All other users (staff, agents, employees) strictly see only their own submitted tickets.
+  // All other users strictly see only their own submitted tickets.
   if (user.role !== "admin") {
     where.push("t.created_by = ?");
     params.push(user.id);
@@ -105,23 +173,6 @@ export async function POST(req: NextRequest) {
   }
   const { title, description, priority, category_id } = parsed.data;
 
-  // Auto-generate unique 6-character ticket ID (2 uppercase letters + 4 digits)
-  let ticketId = "";
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const candidate = generateTicketId();
-    const existing = await query<{ id: string }>(
-      "SELECT id FROM tickets WHERE id = ? LIMIT 1",
-      [candidate]
-    );
-    if (!existing || existing.length === 0) {
-      ticketId = candidate;
-      break;
-    }
-  }
-  if (!ticketId) {
-    ticketId = generateTicketId();
-  }
-
   // Ensure creatorId exists in MySQL users table (resolves FK constraint)
   let creatorId = user.id;
   const userCheck = await query<{ id: number }>(
@@ -150,62 +201,45 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await execute(
-    `INSERT INTO tickets (id, title, description, priority, category_id, created_by, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'open')`,
-    [ticketId, title, description, priority, validCategoryId, creatorId]
-  );
+  // Auto-generate ticket ID with concurrency retry on duplicate entry
+  let finalTicketId = "";
+  let inserted = false;
+  let attempts = 0;
 
-  // --- EMAIL NOTIFICATION TRIGGER ---
-  try {
-    // 1. Notify the User who created the ticket
-    const userEmailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #0056b3;">Ticket Submitted Successfully: #${ticketId}</h2>
-        <p>Hi ${user.name},</p>
-        <p>We have received your ticket and our team will review it shortly. Here are the details you submitted:</p>
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">${title}</h3>
-          <p style="margin-bottom: 0; white-space: pre-wrap;">${description}</p>
-          <br/>
-          <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${priority}</span></p>
-        </div>
-        <p>We will notify you via email when there is an update to your ticket status.</p>
-      </div>
-    `;
-    await sendEmail(user.email, `Ticket Submitted: #${ticketId} - ${title}`, userEmailHtml);
-
-    // 2. Fetch all active admins to notify them of the new ticket
-    const admins = await query<{ email: string }>(
-      "SELECT email FROM users WHERE role = 'admin' AND is_active = 1"
-    );
-
-    if (admins && admins.length > 0) {
-      const adminEmailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-          <h2 style="color: #0056b3;">New Ticket Created: #${ticketId}</h2>
-          <p>A new ticket has been submitted by <strong>${user.name}</strong> (${user.email}).</p>
-          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">${title}</h3>
-            <p style="margin-bottom: 0; white-space: pre-wrap;">${description}</p>
-            <br/>
-            <p style="margin-bottom: 0;"><strong>Priority:</strong> <span style="text-transform: uppercase;">${priority}</span></p>
-          </div>
-          <p>Please log in to the Transco HelpDesk to review and assign this ticket.</p>
-        </div>
-      `;
-
-      // Send emails concurrently to all admins
-      await Promise.all(
-        admins.map(admin => 
-          sendEmail(admin.email, `New Ticket Alert: #${ticketId} - ${title}`, adminEmailHtml)
-        )
+  while (!inserted && attempts < 5) {
+    attempts++;
+    finalTicketId = generateTicketId();
+    try {
+      await execute(
+        `INSERT INTO tickets (id, title, description, priority, category_id, created_by, status)
+         VALUES (?, ?, ?, ?, ?, ?, 'open')`,
+        [finalTicketId, title, description, priority, validCategoryId, creatorId]
       );
-    }
-  } catch (error) {
-    console.error("Failed to send new ticket notifications:", error);
-  }
-  // ----------------------------------
+      inserted = true;
+    } catch (err: any) {
+      const isDuplicate =
+        err?.code === "ER_DUP_ENTRY" ||
+        err?.message?.includes("Duplicate entry") ||
+        err?.message?.includes("PRIMARY");
 
-  return NextResponse.json({ id: ticketId }, { status: 201 });
+      if (isDuplicate && attempts < 5) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  // Asynchronous non-blocking email dispatch
+  sendTicketCreatedEmails({
+    ticketId: finalTicketId,
+    title,
+    description,
+    priority,
+    userName: user.name,
+    userEmail: user.email,
+  }).catch((error) => {
+    console.error(`[Email Error] Failed sending new ticket notification for #${finalTicketId}:`, error);
+  });
+
+  return NextResponse.json({ id: finalTicketId }, { status: 201 });
 }
